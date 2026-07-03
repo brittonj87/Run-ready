@@ -256,6 +256,10 @@ function computeStreak(){
   return streak;
 }
 
+/* ---------- COLORS for cartoon diagrams (match CSS vars) ---------- */
+const COLOR_STRETCH = '#1F8A8A';
+const COLOR_STRENGTH = '#C2571B';
+
 /* ---------- STRETCH GRID ---------- */
 function renderStretchGrid(){
   const entry = todayEntry();
@@ -265,7 +269,7 @@ function renderStretchGrid(){
     return `<button class="ex-card" onclick="openStretch('${s.id}')" style="position:relative;">
       ${done?'<span class="donebadge">✓</span>':''}
       <span class="tag" style="background:var(--stretch-bg); color:var(--stretch);">${s.target}</span>
-      ${diagramSVG(s.poses)}
+      ${stretchDiagramAnim(s, COLOR_STRETCH)}
       <div class="exname">${s.name}</div>
       <div class="exsub">${s.hold}</div>
     </button>`;
@@ -283,7 +287,7 @@ function openStretch(id){
     <span class="modal-tag" style="background:var(--stretch-bg); color:var(--stretch);">${s.target}</span>
     <h2>${s.name}</h2>
     <div class="meta">Hold: ${s.hold}</div>
-    <div class="diagram-wrap" style="color:var(--stretch);">${diagramSVG(s.poses)}</div>
+    <div class="diagram-wrap">${stretchDiagramAnim(s, COLOR_STRETCH)}</div>
     <ol>${s.steps.map(st=>`<li>${st}</li>`).join('')}</ol>
     <div class="tip">💡 ${s.tip}</div>
     <button class="timer-btn" onclick="startHoldTimer(this)">⏱ Start hold timer</button>
@@ -316,7 +320,7 @@ function renderStrengthGrid(){
     return `<button class="ex-card" onclick="openStrength('${s.id}')" style="position:relative;">
       ${done?'<span class="donebadge">✓</span>':''}
       <span class="tag" style="background:var(--strength-bg); color:var(--strength);">${s.target}</span>
-      ${diagramSVG(s.poses)}
+      ${strengthDiagramAnim(s, COLOR_STRENGTH)}
       <div class="exname">${s.name}</div>
       <div class="exsub">${s.reps}</div>
     </button>`;
@@ -334,7 +338,7 @@ function openStrength(id){
     <span class="modal-tag" style="background:var(--strength-bg); color:var(--strength);">${s.target}</span>
     <h2>${s.name}</h2>
     <div class="meta">${s.reps}</div>
-    <div class="diagram-wrap" style="color:var(--strength);">${diagramSVG(s.poses)}</div>
+    <div class="diagram-wrap">${strengthDiagramAnim(s, COLOR_STRENGTH)}</div>
     <ol>${s.steps.map(st=>`<li>${st}</li>`).join('')}</ol>
     <div class="tip">💡 ${s.tip}</div>
     <button class="complete-btn ${done?'done':''}" id="modal-complete-btn" onclick="toggleStrengthDone('${id}')">${done?'✓ Marked complete':'Mark complete'}</button>

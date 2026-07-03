@@ -1,35 +1,115 @@
-/* ---------- Stick-figure diagram renderer ---------- */
-function limbLines(base, mid, end){
-  return `<line x1="${base[0]}" y1="${base[1]}" x2="${mid[0]}" y2="${mid[1]}" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>`+
-         `<line x1="${mid[0]}" y1="${mid[1]}" x2="${end[0]}" y2="${end[1]}" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>`;
+/* ---------- Animated cartoon-figure diagram renderer ---------- */
+const FIG_SKIN = '#F2B88C';
+const FIG_SHORTS = '#2B3A55';
+const FIG_SHOE = '#20242E';
+const FIG_INK = '#20242E';
+
+function poseSegments(p){
+  return {
+    torso: [p.s, p.h],
+    armU1: [p.s, p.arm1.el], armL1: [p.arm1.el, p.arm1.ha],
+    armU2: [p.s, p.arm2.el], armL2: [p.arm2.el, p.arm2.ha],
+    legU1: [p.h, p.leg1.k], legL1: [p.leg1.k, p.leg1.f],
+    legU2: [p.h, p.leg2.k], legL2: [p.leg2.k, p.leg2.f]
+  };
 }
-function figureSVG(p){
-  return `
-    <line x1="${p.s[0]}" y1="${p.s[1]}" x2="${p.h[0]}" y2="${p.h[1]}" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>
-    ${limbLines(p.s, p.arm1.el, p.arm1.ha)}
-    ${limbLines(p.s, p.arm2.el, p.arm2.ha)}
-    ${limbLines(p.h, p.leg1.k, p.leg1.f)}
-    ${limbLines(p.h, p.leg2.k, p.leg2.f)}
-    <circle cx="${p.head[0]}" cy="${p.head[1]}" r="7.5" fill="none" stroke="currentColor" stroke-width="3.2"/>
-  `;
+function poseJoints(p){
+  return { head:p.head, hand1:p.arm1.ha, hand2:p.arm2.ha, foot1:p.leg1.f, foot2:p.leg2.f };
 }
-function diagramSVG(poses){
-  const fw = 100, gap = 16, h = 122;
-  const frames = poses.map((p,i)=>`
-    <g transform="translate(${i*(fw+gap)},0)">
-      <line x1="4" y1="113" x2="96" y2="113" stroke="currentColor" stroke-width="2" opacity="0.18"/>
-      ${figureSVG(p)}
-    </g>`).join('');
-  let arrow = '';
-  if(poses.length===2){
-    const ax = fw + gap/2 - 6;
-    arrow = `<g transform="translate(${ax},56)" opacity="0.5">
-      <line x1="0" y1="0" x2="14" y2="0" stroke="currentColor" stroke-width="2.4"/>
-      <path d="M9,-5 L15,0 L9,5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-    </g>`;
+
+function lerpPt(a,b,t){ return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t]; }
+
+/* Builds a "relaxed" version of a held pose by easing limbs back toward the
+   body, used as the opposite end of a gentle breathing loop for stretches
+   and single-pose isometric holds. */
+function restVariant(pose, factor){
+  function relax(base, mid, end){
+    const newMid = lerpPt(base, mid, 1-factor*0.5);
+    const newEnd = lerpPt(newMid, end, 1-factor);
+    return {mid:newMid, end:newEnd};
   }
-  const totalW = poses.length*fw + (poses.length-1)*gap;
-  return `<svg viewBox="0 0 ${totalW} ${h}" class="diagram" xmlns="http://www.w3.org/2000/svg">${frames}${arrow}</svg>`;
+  const a1 = relax(pose.s, pose.arm1.el, pose.arm1.ha);
+  const a2 = relax(pose.s, pose.arm2.el, pose.arm2.ha);
+  const l1 = relax(pose.h, pose.leg1.k, pose.leg1.f);
+  const l2 = relax(pose.h, pose.leg2.k, pose.leg2.f);
+  const hdx = (pose.head[0]-pose.s[0]) * (1 - factor*0.3);
+  const hdy = (pose.head[1]-pose.s[1]) * (1 - factor*0.3);
+  return {
+    head: [pose.s[0]+hdx, pose.s[1]+hdy],
+    s: pose.s, h: pose.h,
+    arm1:{el:a1.mid, ha:a1.end}, arm2:{el:a2.mid, ha:a2.end},
+    leg1:{k:l1.mid, f:l1.end}, leg2:{k:l2.mid, f:l2.end}
+  };
+}
+
+function animLine(key, frames, color, width, keyTimesStr, durStr){
+  const segs = frames.map(f=>poseSegments(f)[key]);
+  const x1 = segs.map(s=>s[0][0]).join(';'), y1 = segs.map(s=>s[0][1]).join(';');
+  const x2 = segs.map(s=>s[1][0]).join(';'), y2 = segs.map(s=>s[1][1]).join(';');
+  return `<line x1="${segs[0][0][0]}" y1="${segs[0][0][1]}" x2="${segs[0][1][0]}" y2="${segs[0][1][1]}" stroke="${color}" stroke-width="${width}" stroke-linecap="round">
+    <animate attributeName="x1" values="${x1}" keyTimes="${keyTimesStr}" dur="${durStr}" repeatCount="indefinite"/>
+    <animate attributeName="y1" values="${y1}" keyTimes="${keyTimesStr}" dur="${durStr}" repeatCount="indefinite"/>
+    <animate attributeName="x2" values="${x2}" keyTimes="${keyTimesStr}" dur="${durStr}" repeatCount="indefinite"/>
+    <animate attributeName="y2" values="${y2}" keyTimes="${keyTimesStr}" dur="${durStr}" repeatCount="indefinite"/>
+  </line>`;
+}
+function animCircle(key, frames, r, fill, keyTimesStr, durStr){
+  const pts = frames.map(f=>poseJoints(f)[key]);
+  const cx = pts.map(p=>p[0]).join(';'), cy = pts.map(p=>p[1]).join(';');
+  return `<circle cx="${pts[0][0]}" cy="${pts[0][1]}" r="${r}" fill="${fill}">
+    <animate attributeName="cx" values="${cx}" keyTimes="${keyTimesStr}" dur="${durStr}" repeatCount="indefinite"/>
+    <animate attributeName="cy" values="${cy}" keyTimes="${keyTimesStr}" dur="${durStr}" repeatCount="indefinite"/>
+  </circle>`;
+}
+
+function cartoonFigureAnim(frames, keyTimesArr, durSeconds, accentColor){
+  const keyTimesStr = keyTimesArr.join(';');
+  const dur = durSeconds + 's';
+  let svg = `<line x1="4" y1="113" x2="96" y2="113" stroke="#000" stroke-width="1.5" opacity="0.08"/>`;
+  // legs
+  svg += animLine('legU1', frames, FIG_SHORTS, 9, keyTimesStr, dur);
+  svg += animLine('legL1', frames, FIG_SKIN, 7, keyTimesStr, dur);
+  svg += animLine('legU2', frames, FIG_SHORTS, 9, keyTimesStr, dur);
+  svg += animLine('legL2', frames, FIG_SKIN, 7, keyTimesStr, dur);
+  svg += animCircle('foot1', frames, 4.5, FIG_SHOE, keyTimesStr, dur);
+  svg += animCircle('foot2', frames, 4.5, FIG_SHOE, keyTimesStr, dur);
+  // torso
+  svg += animLine('torso', frames, accentColor, 13, keyTimesStr, dur);
+  // arms
+  svg += animLine('armU1', frames, accentColor, 8, keyTimesStr, dur);
+  svg += animLine('armL1', frames, FIG_SKIN, 6.5, keyTimesStr, dur);
+  svg += animLine('armU2', frames, accentColor, 8, keyTimesStr, dur);
+  svg += animLine('armL2', frames, FIG_SKIN, 6.5, keyTimesStr, dur);
+  svg += animCircle('hand1', frames, 3.8, FIG_SKIN, keyTimesStr, dur);
+  svg += animCircle('hand2', frames, 3.8, FIG_SKIN, keyTimesStr, dur);
+  // head + face (rigid group riding along with head position)
+  const h0 = frames[0].head;
+  const dxdy = frames.map(f=>`${f.head[0]-h0[0]},${f.head[1]-h0[1]}`).join(';');
+  svg += `<g>
+    <animateTransform attributeName="transform" type="translate" values="${dxdy}" keyTimes="${keyTimesStr}" dur="${dur}" repeatCount="indefinite"/>
+    <circle cx="${h0[0]}" cy="${h0[1]}" r="9" fill="${FIG_SKIN}"/>
+    <path d="M ${h0[0]-8} ${h0[1]-4} Q ${h0[0]} ${h0[1]-15} ${h0[0]+8} ${h0[1]-4} Q ${h0[0]+6} ${h0[1]-8} ${h0[0]} ${h0[1]-8} Q ${h0[0]-6} ${h0[1]-8} ${h0[0]-8} ${h0[1]-4} Z" fill="${accentColor}" opacity="0.85"/>
+    <circle cx="${h0[0]-3}" cy="${h0[1]-1}" r="1.2" fill="${FIG_INK}"/>
+    <circle cx="${h0[0]+3}" cy="${h0[1]-1}" r="1.2" fill="${FIG_INK}"/>
+    <path d="M ${h0[0]-3} ${h0[1]+3} Q ${h0[0]} ${h0[1]+6} ${h0[0]+3} ${h0[1]+3}" stroke="${FIG_INK}" stroke-width="1.1" fill="none" stroke-linecap="round"/>
+  </g>`;
+  return `<svg viewBox="0 0 100 122" class="diagram" xmlns="http://www.w3.org/2000/svg">${svg}</svg>`;
+}
+
+/* Public helpers used by app.js */
+function stretchDiagramAnim(stretchObj, color){
+  const hold = stretchObj.poses[0];
+  const rest = restVariant(hold, 0.5);
+  return cartoonFigureAnim([rest, hold, hold, rest], [0,0.4,0.7,1], 3.2, color);
+}
+function strengthDiagramAnim(strengthObj, color){
+  if(strengthObj.poses.length===1){
+    const p = strengthObj.poses[0];
+    const rest = restVariant(p, 0.35);
+    return cartoonFigureAnim([rest, p, p, rest], [0,0.4,0.7,1], 2.6, color);
+  }
+  const [a,b] = strengthObj.poses;
+  return cartoonFigureAnim([a,b,a], [0,0.5,1], 1.7, color);
 }
 
 /* ---------- STRETCHES ---------- */

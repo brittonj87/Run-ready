@@ -17,31 +17,6 @@ function poseJoints(p){
   return { head:p.head, hand1:p.arm1.ha, hand2:p.arm2.ha, foot1:p.leg1.f, foot2:p.leg2.f };
 }
 
-function lerpPt(a,b,t){ return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t]; }
-
-/* Builds a "relaxed" version of a held pose by easing limbs back toward the
-   body, used as the opposite end of a gentle breathing loop for stretches
-   and single-pose isometric holds. */
-function restVariant(pose, factor){
-  function relax(base, mid, end){
-    const newMid = lerpPt(base, mid, 1-factor*0.5);
-    const newEnd = lerpPt(newMid, end, 1-factor);
-    return {mid:newMid, end:newEnd};
-  }
-  const a1 = relax(pose.s, pose.arm1.el, pose.arm1.ha);
-  const a2 = relax(pose.s, pose.arm2.el, pose.arm2.ha);
-  const l1 = relax(pose.h, pose.leg1.k, pose.leg1.f);
-  const l2 = relax(pose.h, pose.leg2.k, pose.leg2.f);
-  const hdx = (pose.head[0]-pose.s[0]) * (1 - factor*0.3);
-  const hdy = (pose.head[1]-pose.s[1]) * (1 - factor*0.3);
-  return {
-    head: [pose.s[0]+hdx, pose.s[1]+hdy],
-    s: pose.s, h: pose.h,
-    arm1:{el:a1.mid, ha:a1.end}, arm2:{el:a2.mid, ha:a2.end},
-    leg1:{k:l1.mid, f:l1.end}, leg2:{k:l2.mid, f:l2.end}
-  };
-}
-
 function animLine(key, frames, color, width, keyTimesStr, durStr){
   const segs = frames.map(f=>poseSegments(f)[key]);
   const x1 = segs.map(s=>s[0][0]).join(';'), y1 = segs.map(s=>s[0][1]).join(';');
@@ -66,23 +41,19 @@ function cartoonFigureAnim(frames, keyTimesArr, durSeconds, accentColor){
   const keyTimesStr = keyTimesArr.join(';');
   const dur = durSeconds + 's';
   let svg = `<line x1="4" y1="113" x2="96" y2="113" stroke="#000" stroke-width="1.5" opacity="0.08"/>`;
-  // legs
   svg += animLine('legU1', frames, FIG_SHORTS, 9, keyTimesStr, dur);
   svg += animLine('legL1', frames, FIG_SKIN, 7, keyTimesStr, dur);
   svg += animLine('legU2', frames, FIG_SHORTS, 9, keyTimesStr, dur);
   svg += animLine('legL2', frames, FIG_SKIN, 7, keyTimesStr, dur);
   svg += animCircle('foot1', frames, 4.5, FIG_SHOE, keyTimesStr, dur);
   svg += animCircle('foot2', frames, 4.5, FIG_SHOE, keyTimesStr, dur);
-  // torso
   svg += animLine('torso', frames, accentColor, 13, keyTimesStr, dur);
-  // arms
   svg += animLine('armU1', frames, accentColor, 8, keyTimesStr, dur);
   svg += animLine('armL1', frames, FIG_SKIN, 6.5, keyTimesStr, dur);
   svg += animLine('armU2', frames, accentColor, 8, keyTimesStr, dur);
   svg += animLine('armL2', frames, FIG_SKIN, 6.5, keyTimesStr, dur);
   svg += animCircle('hand1', frames, 3.8, FIG_SKIN, keyTimesStr, dur);
   svg += animCircle('hand2', frames, 3.8, FIG_SKIN, keyTimesStr, dur);
-  // head + face (rigid group riding along with head position)
   const h0 = frames[0].head;
   const dxdy = frames.map(f=>`${f.head[0]-h0[0]},${f.head[1]-h0[1]}`).join(';');
   svg += `<g>
@@ -96,28 +67,31 @@ function cartoonFigureAnim(frames, keyTimesArr, durSeconds, accentColor){
   return `<svg viewBox="0 0 100 122" class="diagram" xmlns="http://www.w3.org/2000/svg">${svg}</svg>`;
 }
 
-/* Public helpers used by app.js */
+/* Stretches: poses = [starting position, full held stretch].
+   Animation eases from start -> hold -> dwell -> back to start, on a loop,
+   so it visibly demonstrates moving INTO the stretch. */
 function stretchDiagramAnim(stretchObj, color){
-  const hold = stretchObj.poses[0];
-  const rest = restVariant(hold, 0.5);
-  return cartoonFigureAnim([rest, hold, hold, rest], [0,0.4,0.7,1], 3.2, color);
+  const [start, hold] = stretchObj.poses;
+  return cartoonFigureAnim([start, hold, hold, start], [0,0.4,0.75,1], 3.2, color);
 }
+/* Strength: isometric holds (plank/wall sit/side plank) get the same
+   ease-in/dwell/ease-out treatment as stretches. Rep-based moves (squat,
+   lunge, etc.) loop continuously between their two rep positions. */
 function strengthDiagramAnim(strengthObj, color){
-  if(strengthObj.poses.length===1){
-    const p = strengthObj.poses[0];
-    const rest = restVariant(p, 0.35);
-    return cartoonFigureAnim([rest, p, p, rest], [0,0.4,0.7,1], 2.6, color);
+  const [a, b] = strengthObj.poses;
+  if(strengthObj.isHold){
+    return cartoonFigureAnim([a, b, b, a], [0,0.4,0.75,1], 2.8, color);
   }
-  const [a,b] = strengthObj.poses;
-  return cartoonFigureAnim([a,b,a], [0,0.5,1], 1.7, color);
+  return cartoonFigureAnim([a, b, a], [0,0.5,1], 1.7, color);
 }
 
 /* ---------- STRETCHES ---------- */
 const STRETCHES = [
 { id:'st_quad', name:'Standing Quad Stretch', target:'Quads', hold:'30s each side',
-  poses:[{head:[50,14],s:[50,27],h:[47,58],
-    arm1:{el:[58,42],ha:[64,66]}, arm2:{el:[36,32],ha:[26,26]},
-    leg1:{k:[45,86],f:[43,112]}, leg2:{k:[55,74],f:[62,66]}}],
+  poses:[
+    {head:[47,16],s:[47,28],h:[47,58], arm1:{el:[39,38],ha:[33,47]}, arm2:{el:[55,38],ha:[61,47]}, leg1:{k:[45,85],f:[43,112]}, leg2:{k:[49,85],f:[47,112]}},
+    {head:[50,14],s:[50,27],h:[47,58], arm1:{el:[58,42],ha:[64,66]}, arm2:{el:[36,32],ha:[26,26]}, leg1:{k:[45,86],f:[43,112]}, leg2:{k:[55,74],f:[62,66]}}
+  ],
   steps:[
     'Stand tall, holding a wall or chair for balance if needed.',
     'Bend one knee, bringing your heel toward your glutes.',
@@ -127,9 +101,10 @@ const STRETCHES = [
   ], tip:'Keep your standing knee soft, not locked, to protect the joint.'},
 
 { id:'st_hamstring', name:'Seated Hamstring Stretch', target:'Hamstrings', hold:'30s each side',
-  poses:[{head:[55,45],s:[50,38],h:[35,72],
-    arm1:{el:[58,55],ha:[70,68]}, arm2:{el:[55,58],ha:[68,72]},
-    leg1:{k:[60,73],f:[88,75]}, leg2:{k:[60,76],f:[88,79]}}],
+  poses:[
+    {head:[38,32],s:[35,44],h:[35,72], arm1:{el:[40,56],ha:[44,70]}, arm2:{el:[32,56],ha:[28,70]}, leg1:{k:[60,73],f:[88,75]}, leg2:{k:[60,76],f:[88,79]}},
+    {head:[58,46],s:[52,40],h:[35,72], arm1:{el:[60,56],ha:[72,68]}, arm2:{el:[56,58],ha:[68,71]}, leg1:{k:[60,73],f:[88,75]}, leg2:{k:[60,76],f:[88,79]}}
+  ],
   steps:[
     'Sit on the floor with both legs extended straight in front of you.',
     'Flex your feet, toes pointing up.',
@@ -139,9 +114,10 @@ const STRETCHES = [
   ], tip:'It\u2019s fine if you can\u2019t reach your toes — bend knees slightly if hamstrings are very tight.'},
 
 { id:'st_calf', name:'Wall Calf Stretch', target:'Calves', hold:'30s each side',
-  poses:[{head:[70,16],s:[68,28],h:[62,58],
-    arm1:{el:[76,35],ha:[88,32]}, arm2:{el:[74,38],ha:[86,38]},
-    leg1:{k:[58,80],f:[52,112]}, leg2:{k:[70,90],f:[85,110]}}],
+  poses:[
+    {head:[64,16],s:[62,28],h:[60,58], arm1:{el:[54,38],ha:[48,47]}, arm2:{el:[70,38],ha:[76,47]}, leg1:{k:[60,85],f:[58,112]}, leg2:{k:[63,85],f:[65,112]}},
+    {head:[70,16],s:[68,28],h:[62,58], arm1:{el:[76,35],ha:[88,32]}, arm2:{el:[74,38],ha:[86,38]}, leg1:{k:[58,80],f:[52,112]}, leg2:{k:[70,90],f:[85,110]}}
+  ],
   steps:[
     'Face a wall, hands pressed against it at shoulder height.',
     'Step one foot back, keeping the back leg straight and heel flat on the floor.',
@@ -151,9 +127,10 @@ const STRETCHES = [
   ], tip:'For a deeper stretch lower down the calf, bend the back knee slightly while keeping the heel down.'},
 
 { id:'st_hipflexor', name:'Kneeling Hip Flexor Stretch', target:'Hip flexors', hold:'30s each side',
-  poses:[{head:[45,25],s:[45,36],h:[45,64],
-    arm1:{el:[52,48],ha:[55,60]}, arm2:{el:[38,48],ha:[35,60]},
-    leg1:{k:[35,86],f:[30,110]}, leg2:{k:[60,105],f:[75,108]}}],
+  poses:[
+    {head:[45,16],s:[45,28],h:[45,58], arm1:{el:[38,38],ha:[33,47]}, arm2:{el:[52,38],ha:[57,47]}, leg1:{k:[43,85],f:[41,112]}, leg2:{k:[47,85],f:[49,112]}},
+    {head:[45,25],s:[45,36],h:[45,64], arm1:{el:[52,48],ha:[55,60]}, arm2:{el:[38,48],ha:[35,60]}, leg1:{k:[35,86],f:[30,110]}, leg2:{k:[60,105],f:[75,108]}}
+  ],
   steps:[
     'Kneel on one knee (use a mat or towel for padding), other foot planted in front, knee bent 90°.',
     'Keep your torso tall and engage your glutes on the kneeling side.',
@@ -163,9 +140,10 @@ const STRETCHES = [
   ], tip:'Tight hip flexors are common in runners and can pull on the lower back — this one\'s worth doing daily.'},
 
 { id:'st_glute', name:'Standing Figure-4 Glute Stretch', target:'Glutes / piriformis', hold:'30s each side',
-  poses:[{head:[48,16],s:[48,28],h:[46,58],
-    arm1:{el:[55,45],ha:[58,55]}, arm2:{el:[40,42],ha:[36,50]},
-    leg1:{k:[42,86],f:[40,112]}, leg2:{k:[58,72],f:[64,70]}}],
+  poses:[
+    {head:[48,16],s:[48,28],h:[46,58], arm1:{el:[40,38],ha:[35,47]}, arm2:{el:[56,38],ha:[61,47]}, leg1:{k:[44,85],f:[42,112]}, leg2:{k:[48,85],f:[50,112]}},
+    {head:[48,18],s:[48,30],h:[46,62], arm1:{el:[55,46],ha:[58,56]}, arm2:{el:[40,44],ha:[36,52]}, leg1:{k:[42,88],f:[40,112]}, leg2:{k:[58,74],f:[64,72]}}
+  ],
   steps:[
     'Stand tall, holding onto a wall or chair for balance.',
     'Cross one ankle over the opposite knee, shin roughly parallel to the floor.',
@@ -175,9 +153,10 @@ const STRETCHES = [
   ], tip:'This one targets the glutes and piriformis, which can tighten up and cause hip or lower-back tightness in runners.'},
 
 { id:'st_itband', name:'Standing IT Band Stretch', target:'IT band / outer hip', hold:'30s each side',
-  poses:[{head:[62,20],s:[58,30],h:[50,60],
-    arm1:{el:[68,20],ha:[78,10]}, arm2:{el:[42,42],ha:[38,52]},
-    leg1:{k:[52,86],f:[60,112]}, leg2:{k:[46,88],f:[38,110]}}],
+  poses:[
+    {head:[50,16],s:[50,28],h:[48,58], arm1:{el:[42,38],ha:[36,47]}, arm2:{el:[58,38],ha:[64,47]}, leg1:{k:[48,85],f:[46,112]}, leg2:{k:[52,85],f:[54,112]}},
+    {head:[62,20],s:[58,30],h:[50,60], arm1:{el:[68,20],ha:[78,10]}, arm2:{el:[42,42],ha:[38,52]}, leg1:{k:[52,86],f:[60,112]}, leg2:{k:[46,88],f:[38,110]}}
+  ],
   steps:[
     'Stand tall and cross one leg behind the other.',
     'Reach the same-side arm overhead and lean your torso away from that side.',
@@ -187,9 +166,10 @@ const STRETCHES = [
   ], tip:'A tight IT band is a common cause of outer-knee pain in runners — this stretch plus foam rolling can help.'},
 
 { id:'st_butterfly', name:'Butterfly Stretch', target:'Inner thighs / groin', hold:'45s',
-  poses:[{head:[50,50],s:[48,42],h:[48,76],
-    arm1:{el:[42,58],ha:[38,72]}, arm2:{el:[54,58],ha:[58,72]},
-    leg1:{k:[30,88],f:[46,90]}, leg2:{k:[66,88],f:[50,90]}}],
+  poses:[
+    {head:[50,32],s:[48,28],h:[48,72], arm1:{el:[42,45],ha:[38,58]}, arm2:{el:[54,45],ha:[58,58]}, leg1:{k:[33,66],f:[40,90]}, leg2:{k:[63,66],f:[56,90]}},
+    {head:[50,50],s:[48,42],h:[48,76], arm1:{el:[42,58],ha:[38,72]}, arm2:{el:[54,58],ha:[58,72]}, leg1:{k:[30,88],f:[46,90]}, leg2:{k:[66,88],f:[50,90]}}
+  ],
   steps:[
     'Sit on the floor and bring the soles of your feet together.',
     'Let your knees fall open toward the ground.',
@@ -199,9 +179,10 @@ const STRETCHES = [
   ], tip:'Never bounce in a stretch — ease in gradually and let the muscle relax.'},
 
 { id:'st_downdog', name:'Downward Dog', target:'Calves / hamstrings / back', hold:'30-45s',
-  poses:[{head:[55,55],s:[50,50],h:[35,40],
-    arm1:{el:[65,65],ha:[78,90]}, arm2:{el:[63,68],ha:[76,92]},
-    leg1:{k:[25,70],f:[18,110]}, leg2:{k:[28,72],f:[22,110]}}],
+  poses:[
+    {head:[62,58],s:[57,55],h:[38,56], arm1:{el:[63,66],ha:[68,86]}, arm2:{el:[60,68],ha:[65,87]}, leg1:{k:[24,58],f:[13,84]}, leg2:{k:[26,60],f:[15,86]}},
+    {head:[55,55],s:[50,50],h:[35,40], arm1:{el:[65,65],ha:[78,90]}, arm2:{el:[63,68],ha:[76,92]}, leg1:{k:[25,70],f:[18,110]}, leg2:{k:[28,72],f:[22,110]}}
+  ],
   steps:[
     'Start on hands and knees, hands slightly ahead of your shoulders.',
     'Tuck your toes and lift your hips up and back, forming an inverted V.',
@@ -253,8 +234,9 @@ const STRENGTH = [
     'Switch legs.'
   ], tip:'Weak glutes are a common cause of runner\'s knee — this one directly strengthens them.'},
 
-{ id:'sx_wallsit', cat:'leg', name:'Wall Sit', target:'Quads (isometric)', reps:'3 sets x 30-45s hold',
+{ id:'sx_wallsit', cat:'leg', name:'Wall Sit', target:'Quads (isometric)', reps:'3 sets x 30-45s hold', isHold:true,
   poses:[
+    {head:[75,16],s:[74,28],h:[70,58], arm1:{el:[65,38],ha:[58,47]}, arm2:{el:[83,38],ha:[90,47]}, leg1:{k:[71,85],f:[70,112]}, leg2:{k:[74,85],f:[75,112]}},
     {head:[75,20],s:[74,32],h:[70,60], arm1:{el:[62,45],ha:[55,52]}, arm2:{el:[80,45],ha:[88,52]}, leg1:{k:[50,60],f:[48,90]}, leg2:{k:[52,58],f:[50,92]}}
   ],
   steps:[
@@ -279,8 +261,9 @@ const STRENGTH = [
   ], tip:'Strong calves help absorb impact and can reduce Achilles and shin issues.'},
 
 // CORE
-{ id:'sx_plank', cat:'core', name:'Forearm Plank', target:'Core (isometric)', reps:'3 sets x 30-45s hold',
+{ id:'sx_plank', cat:'core', name:'Forearm Plank', target:'Core (isometric)', reps:'3 sets x 30-45s hold', isHold:true,
   poses:[
+    {head:[90,60],s:[78,60],h:[45,62], arm1:{el:[78,75],ha:[78,92]}, arm2:{el:[76,76],ha:[76,93]}, leg1:{k:[30,85],f:[15,90]}, leg2:{k:[28,86],f:[13,91]}},
     {head:[90,58],s:[78,58],h:[40,58], arm1:{el:[78,75],ha:[78,92]}, arm2:{el:[76,76],ha:[76,93]}, leg1:{k:[20,60],f:[7,90]}, leg2:{k:[18,62],f:[5,92]}}
   ],
   steps:[
@@ -291,8 +274,9 @@ const STRENGTH = [
     'Hold, breathing steadily throughout.'
   ], tip:'Quality over duration — a strict 20s plank beats a sagging 60s one.'},
 
-{ id:'sx_sideplank', cat:'core', name:'Side Plank', target:'Obliques / hips', reps:'3 sets x 20-30s each side',
+{ id:'sx_sideplank', cat:'core', name:'Side Plank', target:'Obliques / hips', reps:'3 sets x 20-30s each side', isHold:true,
   poses:[
+    {head:[72,52],s:[62,52],h:[35,58], arm1:{el:[64,62],ha:[64,80]}, arm2:{el:[58,45],ha:[50,38]}, leg1:{k:[16,58],f:[4,60]}, leg2:{k:[17,56],f:[5,58]}},
     {head:[72,50],s:[62,48],h:[35,50], arm1:{el:[64,60],ha:[64,78]}, arm2:{el:[55,35],ha:[52,16]}, leg1:{k:[16,52],f:[4,55]}, leg2:{k:[17,50],f:[5,53]}}
   ],
   steps:[
@@ -319,7 +303,7 @@ const STRENGTH = [
 { id:'sx_deadbug', cat:'core', name:'Dead Bug', target:'Deep core / low back', reps:'3 sets x 10 each side',
   poses:[
     {head:[15,80],s:[28,80],h:[50,80], arm1:{el:[32,60],ha:[32,42]}, arm2:{el:[32,60],ha:[32,42]}, leg1:{k:[58,60],f:[70,60]}, leg2:{k:[58,60],f:[70,60]}},
-    {head:[15,80],s:[28,80],h:[50,80], arm1:{el:[10,65],ha:[-4,50]}, arm2:{el:[32,60],ha:[32,42]}, leg1:{k:[65,75],ha:[85,78]}, leg2:{k:[58,60],f:[70,60]}}
+    {head:[15,80],s:[28,80],h:[50,80], arm1:{el:[10,65],ha:[-4,50]}, arm2:{el:[32,60],ha:[32,42]}, leg1:{k:[65,75],f:[85,78]}, leg2:{k:[58,60],f:[70,60]}}
   ],
   steps:[
     'Lie on your back, arms reaching straight up, knees bent 90° over your hips (tabletop).',
@@ -342,6 +326,3 @@ const STRENGTH = [
     'Keep the movement smooth — don\u2019t jerk upward.'
   ], tip:'This balances out all the forward-flexed sitting most people do during the day.'},
 ];
-
-/* fix a small typo-safe access for dead bug pose 2 leg1 (uses f, not ha) */
-STRENGTH.find(x=>x.id==='sx_deadbug').poses[1].leg1 = {k:[65,75], f:[85,78]};

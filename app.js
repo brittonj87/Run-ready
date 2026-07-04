@@ -269,11 +269,19 @@ function renderStretchGrid(){
     return `<button class="ex-card" onclick="openStretch('${s.id}')" style="position:relative;">
       ${done?'<span class="donebadge">✓</span>':''}
       <span class="tag" style="background:var(--stretch-bg); color:var(--stretch);">${s.target}</span>
-      ${stretchDiagramAnim(s, COLOR_STRETCH)}
+      ${stretchCardThumb(s, COLOR_STRETCH)}
       <div class="exname">${s.name}</div>
       <div class="exsub">${s.hold}</div>
     </button>`;
   }).join('');
+}
+
+function buildStepPanelsHTML(panels){
+  return `<div class="step-panels">${panels.map((p,i)=>`
+    <div class="step-panel">
+      <div class="step-diagram-wrap"><span class="step-num">${i+1}</span>${p.svg}</div>
+      <div class="step-text">${p.text}</div>
+    </div>`).join('')}</div>`;
 }
 
 function openStretch(id){
@@ -281,14 +289,14 @@ function openStretch(id){
   const entry = todayEntry();
   const done = entry.stretch.includes(id);
   const body = document.getElementById('modal-body');
+  const panels = stretchStepPanels(s, COLOR_STRETCH);
   body.innerHTML = `
     <div class="modal-handle"></div>
     <button class="modal-close" onclick="closeModal()">✕</button>
     <span class="modal-tag" style="background:var(--stretch-bg); color:var(--stretch);">${s.target}</span>
     <h2>${s.name}</h2>
     <div class="meta">Hold: ${s.hold}</div>
-    <div class="diagram-wrap">${stretchDiagramAnim(s, COLOR_STRETCH)}</div>
-    <ol>${s.steps.map(st=>`<li>${st}</li>`).join('')}</ol>
+    ${buildStepPanelsHTML(panels)}
     <div class="tip">💡 ${s.tip}</div>
     <button class="timer-btn" onclick="startHoldTimer(this)">⏱ Start hold timer</button>
     <div class="timer-display" style="display:none;"></div>
@@ -320,7 +328,7 @@ function renderStrengthGrid(){
     return `<button class="ex-card" onclick="openStrength('${s.id}')" style="position:relative;">
       ${done?'<span class="donebadge">✓</span>':''}
       <span class="tag" style="background:var(--strength-bg); color:var(--strength);">${s.target}</span>
-      ${strengthDiagramAnim(s, COLOR_STRENGTH)}
+      ${strengthCardThumb(s, COLOR_STRENGTH)}
       <div class="exname">${s.name}</div>
       <div class="exsub">${s.reps}</div>
     </button>`;
@@ -332,14 +340,14 @@ function openStrength(id){
   const entry = todayEntry();
   const done = entry.strength.includes(id);
   const body = document.getElementById('modal-body');
+  const panels = strengthStepPanels(s, COLOR_STRENGTH);
   body.innerHTML = `
     <div class="modal-handle"></div>
     <button class="modal-close" onclick="closeModal()">✕</button>
     <span class="modal-tag" style="background:var(--strength-bg); color:var(--strength);">${s.target}</span>
     <h2>${s.name}</h2>
     <div class="meta">${s.reps}</div>
-    <div class="diagram-wrap">${strengthDiagramAnim(s, COLOR_STRENGTH)}</div>
-    <ol>${s.steps.map(st=>`<li>${st}</li>`).join('')}</ol>
+    ${buildStepPanelsHTML(panels)}
     <div class="tip">💡 ${s.tip}</div>
     <button class="complete-btn ${done?'done':''}" id="modal-complete-btn" onclick="toggleStrengthDone('${id}')">${done?'✓ Marked complete':'Mark complete'}</button>
   `;
@@ -363,7 +371,7 @@ function toggleStrengthDone(id){
 function startHoldTimer(btn){
   const wrap = btn.parentElement;
   const display = wrap.querySelector('.timer-display');
-  let seconds = 30;
+  let seconds = 60;
   display.style.display = 'block';
   display.textContent = seconds + 's';
   btn.textContent = '⏸ Restart timer';

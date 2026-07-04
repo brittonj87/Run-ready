@@ -1,4 +1,4 @@
-/* ---------- Animated cartoon-figure diagram renderer ---------- */
+/* ---------- Static cartoon-figure step panel renderer ---------- */
 const FIG_SKIN = '#F2B88C';
 const FIG_SHORTS = '#2B3A55';
 const FIG_SHOE = '#20242E';
@@ -17,77 +17,63 @@ function poseJoints(p){
   return { head:p.head, hand1:p.arm1.ha, hand2:p.arm2.ha, foot1:p.leg1.f, foot2:p.leg2.f };
 }
 
-function animLine(key, frames, color, width, keyTimesStr, durStr){
-  const segs = frames.map(f=>poseSegments(f)[key]);
-  const x1 = segs.map(s=>s[0][0]).join(';'), y1 = segs.map(s=>s[0][1]).join(';');
-  const x2 = segs.map(s=>s[1][0]).join(';'), y2 = segs.map(s=>s[1][1]).join(';');
-  return `<line x1="${segs[0][0][0]}" y1="${segs[0][0][1]}" x2="${segs[0][1][0]}" y2="${segs[0][1][1]}" stroke="${color}" stroke-width="${width}" stroke-linecap="round">
-    <animate attributeName="x1" values="${x1}" keyTimes="${keyTimesStr}" dur="${durStr}" repeatCount="indefinite"/>
-    <animate attributeName="y1" values="${y1}" keyTimes="${keyTimesStr}" dur="${durStr}" repeatCount="indefinite"/>
-    <animate attributeName="x2" values="${x2}" keyTimes="${keyTimesStr}" dur="${durStr}" repeatCount="indefinite"/>
-    <animate attributeName="y2" values="${y2}" keyTimes="${keyTimesStr}" dur="${durStr}" repeatCount="indefinite"/>
-  </line>`;
-}
-function animCircle(key, frames, r, fill, keyTimesStr, durStr){
-  const pts = frames.map(f=>poseJoints(f)[key]);
-  const cx = pts.map(p=>p[0]).join(';'), cy = pts.map(p=>p[1]).join(';');
-  return `<circle cx="${pts[0][0]}" cy="${pts[0][1]}" r="${r}" fill="${fill}">
-    <animate attributeName="cx" values="${cx}" keyTimes="${keyTimesStr}" dur="${durStr}" repeatCount="indefinite"/>
-    <animate attributeName="cy" values="${cy}" keyTimes="${keyTimesStr}" dur="${durStr}" repeatCount="indefinite"/>
-  </circle>`;
-}
-
-function cartoonFigureAnim(frames, keyTimesArr, durSeconds, accentColor){
-  const keyTimesStr = keyTimesArr.join(';');
-  const dur = durSeconds + 's';
+/* Renders one still cartoon figure at a single pose (no animation). */
+function renderStaticFigure(p, color){
+  const seg = poseSegments(p), j = poseJoints(p);
+  const L = (key,c,w) => { const s = seg[key]; return `<line x1="${s[0][0]}" y1="${s[0][1]}" x2="${s[1][0]}" y2="${s[1][1]}" stroke="${c}" stroke-width="${w}" stroke-linecap="round"/>`; };
+  const C = (pt,r,fill) => `<circle cx="${pt[0]}" cy="${pt[1]}" r="${r}" fill="${fill}"/>`;
   let svg = `<line x1="4" y1="113" x2="96" y2="113" stroke="#000" stroke-width="1.5" opacity="0.08"/>`;
-  svg += animLine('legU1', frames, FIG_SHORTS, 9, keyTimesStr, dur);
-  svg += animLine('legL1', frames, FIG_SKIN, 7, keyTimesStr, dur);
-  svg += animLine('legU2', frames, FIG_SHORTS, 9, keyTimesStr, dur);
-  svg += animLine('legL2', frames, FIG_SKIN, 7, keyTimesStr, dur);
-  svg += animCircle('foot1', frames, 4.5, FIG_SHOE, keyTimesStr, dur);
-  svg += animCircle('foot2', frames, 4.5, FIG_SHOE, keyTimesStr, dur);
-  svg += animLine('torso', frames, accentColor, 13, keyTimesStr, dur);
-  svg += animLine('armU1', frames, accentColor, 8, keyTimesStr, dur);
-  svg += animLine('armL1', frames, FIG_SKIN, 6.5, keyTimesStr, dur);
-  svg += animLine('armU2', frames, accentColor, 8, keyTimesStr, dur);
-  svg += animLine('armL2', frames, FIG_SKIN, 6.5, keyTimesStr, dur);
-  svg += animCircle('hand1', frames, 3.8, FIG_SKIN, keyTimesStr, dur);
-  svg += animCircle('hand2', frames, 3.8, FIG_SKIN, keyTimesStr, dur);
-  const h0 = frames[0].head;
-  const dxdy = frames.map(f=>`${f.head[0]-h0[0]},${f.head[1]-h0[1]}`).join(';');
-  svg += `<g>
-    <animateTransform attributeName="transform" type="translate" values="${dxdy}" keyTimes="${keyTimesStr}" dur="${dur}" repeatCount="indefinite"/>
-    <circle cx="${h0[0]}" cy="${h0[1]}" r="9" fill="${FIG_SKIN}"/>
-    <path d="M ${h0[0]-8} ${h0[1]-4} Q ${h0[0]} ${h0[1]-15} ${h0[0]+8} ${h0[1]-4} Q ${h0[0]+6} ${h0[1]-8} ${h0[0]} ${h0[1]-8} Q ${h0[0]-6} ${h0[1]-8} ${h0[0]-8} ${h0[1]-4} Z" fill="${accentColor}" opacity="0.85"/>
+  svg += L('legU1',FIG_SHORTS,9) + L('legL1',FIG_SKIN,7) + L('legU2',FIG_SHORTS,9) + L('legL2',FIG_SKIN,7);
+  svg += C(j.foot1,4.5,FIG_SHOE) + C(j.foot2,4.5,FIG_SHOE);
+  svg += L('torso',color,13);
+  svg += L('armU1',color,8) + L('armL1',FIG_SKIN,6.5) + L('armU2',color,8) + L('armL2',FIG_SKIN,6.5);
+  svg += C(j.hand1,3.8,FIG_SKIN) + C(j.hand2,3.8,FIG_SKIN);
+  const h0 = p.head;
+  svg += `<circle cx="${h0[0]}" cy="${h0[1]}" r="9" fill="${FIG_SKIN}"/>
+    <path d="M ${h0[0]-8} ${h0[1]-4} Q ${h0[0]} ${h0[1]-15} ${h0[0]+8} ${h0[1]-4} Q ${h0[0]+6} ${h0[1]-8} ${h0[0]} ${h0[1]-8} Q ${h0[0]-6} ${h0[1]-8} ${h0[0]-8} ${h0[1]-4} Z" fill="${color}" opacity="0.85"/>
     <circle cx="${h0[0]-3}" cy="${h0[1]-1}" r="1.2" fill="${FIG_INK}"/>
     <circle cx="${h0[0]+3}" cy="${h0[1]-1}" r="1.2" fill="${FIG_INK}"/>
-    <path d="M ${h0[0]-3} ${h0[1]+3} Q ${h0[0]} ${h0[1]+6} ${h0[0]+3} ${h0[1]+3}" stroke="${FIG_INK}" stroke-width="1.1" fill="none" stroke-linecap="round"/>
-  </g>`;
+    <path d="M ${h0[0]-3} ${h0[1]+3} Q ${h0[0]} ${h0[1]+6} ${h0[0]+3} ${h0[1]+3}" stroke="${FIG_INK}" stroke-width="1.1" fill="none" stroke-linecap="round"/>`;
   return `<svg viewBox="0 0 100 122" class="diagram" xmlns="http://www.w3.org/2000/svg">${svg}</svg>`;
 }
 
-/* Stretches: poses = [starting position, full held stretch].
-   Animation eases from start -> hold -> dwell -> back to start, on a loop,
-   so it visibly demonstrates moving INTO the stretch. */
-function stretchDiagramAnim(stretchObj, color){
-  const [start, hold] = stretchObj.poses;
-  return cartoonFigureAnim([start, hold, hold, start], [0,0.4,0.75,1], 3.2, color);
-}
-/* Strength: isometric holds (plank/wall sit/side plank) get the same
-   ease-in/dwell/ease-out treatment as stretches. Rep-based moves (squat,
-   lunge, etc.) loop continuously between their two rep positions. */
-function strengthDiagramAnim(strengthObj, color){
-  const [a, b] = strengthObj.poses;
-  if(strengthObj.isHold){
-    return cartoonFigureAnim([a, b, b, a], [0,0.4,0.75,1], 2.8, color);
-  }
-  return cartoonFigureAnim([a, b, a], [0,0.5,1], 1.7, color);
+function lerpPose(a,b,t){
+  const L = (p,q) => [p[0]+(q[0]-p[0])*t, p[1]+(q[1]-p[1])*t];
+  return {
+    head:L(a.head,b.head), s:L(a.s,b.s), h:L(a.h,b.h),
+    arm1:{el:L(a.arm1.el,b.arm1.el), ha:L(a.arm1.ha,b.arm1.ha)},
+    arm2:{el:L(a.arm2.el,b.arm2.el), ha:L(a.arm2.ha,b.arm2.ha)},
+    leg1:{k:L(a.leg1.k,b.leg1.k), f:L(a.leg1.f,b.leg1.f)},
+    leg2:{k:L(a.leg2.k,b.leg2.k), f:L(a.leg2.f,b.leg2.f)}
+  };
 }
 
-/* ---------- STRETCHES ---------- */
+/* 5 keyframes across the movement, matched to the 5 instruction steps.
+   Hold-type moves (stretches, isometric strength) ease in and settle into
+   the held position for the last few steps. Rep-type moves (squats, bridges,
+   etc.) go start -> halfway -> full rep -> halfway -> back to start. */
+function fivePanelFrames(poses, holdType){
+  const [a,b] = poses;
+  const ts = holdType ? [0, 0.35, 0.7, 0.9, 1] : [0, 0.5, 1, 0.5, 0];
+  return ts.map(t=>lerpPose(a,b,t));
+}
+
+function stepPanels(obj, color, holdType){
+  const frames = fivePanelFrames(obj.poses, holdType);
+  return frames.map((f,i)=>({ svg: renderStaticFigure(f, color), text: obj.steps[i] || '' }));
+}
+function cardThumb(obj, color, holdType){
+  const [a,b] = obj.poses;
+  return renderStaticFigure(lerpPose(a,b, holdType ? 0.75 : 1), color);
+}
+
+function stretchStepPanels(s, color){ return stepPanels(s, color, true); }
+function stretchCardThumb(s, color){ return cardThumb(s, color, true); }
+function strengthStepPanels(s, color){ return stepPanels(s, color, !!s.isHold); }
+function strengthCardThumb(s, color){ return cardThumb(s, color, !!s.isHold); }
+
 const STRETCHES = [
-{ id:'st_quad', name:'Standing Quad Stretch', target:'Quads', hold:'30s each side',
+{ id:'st_quad', name:'Standing Quad Stretch', target:'Quads', hold:'60s each side',
   poses:[
     {head:[47,16],s:[47,28],h:[47,58], arm1:{el:[39,38],ha:[33,47]}, arm2:{el:[55,38],ha:[61,47]}, leg1:{k:[45,85],f:[43,112]}, leg2:{k:[49,85],f:[47,112]}},
     {head:[50,14],s:[50,27],h:[47,58], arm1:{el:[58,42],ha:[64,66]}, arm2:{el:[36,32],ha:[26,26]}, leg1:{k:[45,86],f:[43,112]}, leg2:{k:[55,74],f:[62,66]}}
@@ -100,7 +86,7 @@ const STRETCHES = [
     'Hold, then switch sides.'
   ], tip:'Keep your standing knee soft, not locked, to protect the joint.'},
 
-{ id:'st_hamstring', name:'Seated Hamstring Stretch', target:'Hamstrings', hold:'30s each side',
+{ id:'st_hamstring', name:'Seated Hamstring Stretch', target:'Hamstrings', hold:'60s each side',
   poses:[
     {head:[38,32],s:[35,44],h:[35,72], arm1:{el:[40,56],ha:[44,70]}, arm2:{el:[32,56],ha:[28,70]}, leg1:{k:[60,73],f:[88,75]}, leg2:{k:[60,76],f:[88,79]}},
     {head:[58,46],s:[52,40],h:[35,72], arm1:{el:[60,56],ha:[72,68]}, arm2:{el:[56,58],ha:[68,71]}, leg1:{k:[60,73],f:[88,75]}, leg2:{k:[60,76],f:[88,79]}}
@@ -113,7 +99,7 @@ const STRETCHES = [
     'Hold, breathing steadily.'
   ], tip:'It\u2019s fine if you can\u2019t reach your toes — bend knees slightly if hamstrings are very tight.'},
 
-{ id:'st_calf', name:'Wall Calf Stretch', target:'Calves', hold:'30s each side',
+{ id:'st_calf', name:'Wall Calf Stretch', target:'Calves', hold:'60s each side',
   poses:[
     {head:[64,16],s:[62,28],h:[60,58], arm1:{el:[54,38],ha:[48,47]}, arm2:{el:[70,38],ha:[76,47]}, leg1:{k:[60,85],f:[58,112]}, leg2:{k:[63,85],f:[65,112]}},
     {head:[70,16],s:[68,28],h:[62,58], arm1:{el:[76,35],ha:[88,32]}, arm2:{el:[74,38],ha:[86,38]}, leg1:{k:[58,80],f:[52,112]}, leg2:{k:[70,90],f:[85,110]}}
@@ -126,7 +112,7 @@ const STRETCHES = [
     'Hold, then switch sides.'
   ], tip:'For a deeper stretch lower down the calf, bend the back knee slightly while keeping the heel down.'},
 
-{ id:'st_hipflexor', name:'Kneeling Hip Flexor Stretch', target:'Hip flexors', hold:'30s each side',
+{ id:'st_hipflexor', name:'Kneeling Hip Flexor Stretch', target:'Hip flexors', hold:'60s each side',
   poses:[
     {head:[45,16],s:[45,28],h:[45,58], arm1:{el:[38,38],ha:[33,47]}, arm2:{el:[52,38],ha:[57,47]}, leg1:{k:[43,85],f:[41,112]}, leg2:{k:[47,85],f:[49,112]}},
     {head:[45,25],s:[45,36],h:[45,64], arm1:{el:[52,48],ha:[55,60]}, arm2:{el:[38,48],ha:[35,60]}, leg1:{k:[35,86],f:[30,110]}, leg2:{k:[60,105],f:[75,108]}}
@@ -139,7 +125,7 @@ const STRETCHES = [
     'Hold, then switch sides.'
   ], tip:'Tight hip flexors are common in runners and can pull on the lower back — this one\'s worth doing daily.'},
 
-{ id:'st_glute', name:'Standing Figure-4 Glute Stretch', target:'Glutes / piriformis', hold:'30s each side',
+{ id:'st_glute', name:'Standing Figure-4 Glute Stretch', target:'Glutes / piriformis', hold:'60s each side',
   poses:[
     {head:[48,16],s:[48,28],h:[46,58], arm1:{el:[40,38],ha:[35,47]}, arm2:{el:[56,38],ha:[61,47]}, leg1:{k:[44,85],f:[42,112]}, leg2:{k:[48,85],f:[50,112]}},
     {head:[48,18],s:[48,30],h:[46,62], arm1:{el:[55,46],ha:[58,56]}, arm2:{el:[40,44],ha:[36,52]}, leg1:{k:[42,88],f:[40,112]}, leg2:{k:[58,74],f:[64,72]}}
@@ -152,7 +138,7 @@ const STRETCHES = [
     'Hold, then switch sides.'
   ], tip:'This one targets the glutes and piriformis, which can tighten up and cause hip or lower-back tightness in runners.'},
 
-{ id:'st_itband', name:'Standing IT Band Stretch', target:'IT band / outer hip', hold:'30s each side',
+{ id:'st_itband', name:'Standing IT Band Stretch', target:'IT band / outer hip', hold:'60s each side',
   poses:[
     {head:[50,16],s:[50,28],h:[48,58], arm1:{el:[42,38],ha:[36,47]}, arm2:{el:[58,38],ha:[64,47]}, leg1:{k:[48,85],f:[46,112]}, leg2:{k:[52,85],f:[54,112]}},
     {head:[62,20],s:[58,30],h:[50,60], arm1:{el:[68,20],ha:[78,10]}, arm2:{el:[42,42],ha:[38,52]}, leg1:{k:[52,86],f:[60,112]}, leg2:{k:[46,88],f:[38,110]}}
@@ -165,7 +151,7 @@ const STRETCHES = [
     'Hold, then switch sides.'
   ], tip:'A tight IT band is a common cause of outer-knee pain in runners — this stretch plus foam rolling can help.'},
 
-{ id:'st_butterfly', name:'Butterfly Stretch', target:'Inner thighs / groin', hold:'45s',
+{ id:'st_butterfly', name:'Butterfly Stretch', target:'Inner thighs / groin', hold:'60s',
   poses:[
     {head:[50,32],s:[48,28],h:[48,72], arm1:{el:[42,45],ha:[38,58]}, arm2:{el:[54,45],ha:[58,58]}, leg1:{k:[33,66],f:[40,90]}, leg2:{k:[63,66],f:[56,90]}},
     {head:[50,50],s:[48,42],h:[48,76], arm1:{el:[42,58],ha:[38,72]}, arm2:{el:[54,58],ha:[58,72]}, leg1:{k:[30,88],f:[46,90]}, leg2:{k:[66,88],f:[50,90]}}
@@ -178,7 +164,7 @@ const STRETCHES = [
     'Hold, breathing deeply.'
   ], tip:'Never bounce in a stretch — ease in gradually and let the muscle relax.'},
 
-{ id:'st_downdog', name:'Downward Dog', target:'Calves / hamstrings / back', hold:'30-45s',
+{ id:'st_downdog', name:'Downward Dog', target:'Calves / hamstrings / back', hold:'60s',
   poses:[
     {head:[62,58],s:[57,55],h:[38,56], arm1:{el:[63,66],ha:[68,86]}, arm2:{el:[60,68],ha:[65,87]}, leg1:{k:[24,58],f:[13,84]}, leg2:{k:[26,60],f:[15,86]}},
     {head:[55,55],s:[50,50],h:[35,40], arm1:{el:[65,65],ha:[78,90]}, arm2:{el:[63,68],ha:[76,92]}, leg1:{k:[25,70],f:[18,110]}, leg2:{k:[28,72],f:[22,110]}}

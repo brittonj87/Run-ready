@@ -1,39 +1,75 @@
-/* ---------- Static cartoon-figure step panel renderer ---------- */
-const FIG_SKIN = '#F2B88C';
-const FIG_SHORTS = '#2B3A55';
+/* ---------- Flat-design cartoon-figure renderer (static, 5-panel) ---------- */
+const FIG_SKIN = '#EFB489';
+const FIG_SHORTS = '#33415C';
 const FIG_SHOE = '#20242E';
 const FIG_INK = '#20242E';
+const FIG_HAIR = '#3E2C22';
 
-function poseSegments(p){
-  return {
-    torso: [p.s, p.h],
-    armU1: [p.s, p.arm1.el], armL1: [p.arm1.el, p.arm1.ha],
-    armU2: [p.s, p.arm2.el], armL2: [p.arm2.el, p.arm2.ha],
-    legU1: [p.h, p.leg1.k], legL1: [p.leg1.k, p.leg1.f],
-    legU2: [p.h, p.leg2.k], legL2: [p.leg2.k, p.leg2.f]
-  };
+/* Draws a tapered limb as a filled quadrilateral between two points, with
+   a thin outline for a clean flat-illustration edge. */
+function taperedLimb(p1, p2, w1, w2, color, opacity){
+  const dx = p2[0]-p1[0], dy = p2[1]-p1[1];
+  const len = Math.sqrt(dx*dx+dy*dy) || 0.0001;
+  const nx = -dy/len, ny = dx/len;
+  const a = [p1[0]+nx*w1/2, p1[1]+ny*w1/2];
+  const b = [p2[0]+nx*w2/2, p2[1]+ny*w2/2];
+  const c = [p2[0]-nx*w2/2, p2[1]-ny*w2/2];
+  const d = [p1[0]-nx*w1/2, p1[1]-ny*w1/2];
+  const pts = [a,b,c,d].map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  const op = opacity!==undefined ? ` opacity="${opacity}"` : '';
+  return `<polygon points="${pts}" fill="${color}" stroke="rgba(20,24,34,0.16)" stroke-width="1"${op}/>`;
 }
-function poseJoints(p){
-  return { head:p.head, hand1:p.arm1.ha, hand2:p.arm2.ha, foot1:p.leg1.f, foot2:p.leg2.f };
+function jointCap(pt, r, color, opacity){
+  const op = opacity!==undefined ? ` opacity="${opacity}"` : '';
+  return `<circle cx="${pt[0].toFixed(1)}" cy="${pt[1].toFixed(1)}" r="${r}" fill="${color}" stroke="rgba(20,24,34,0.16)" stroke-width="1"${op}/>`;
 }
 
 /* Renders one still cartoon figure at a single pose (no animation). */
 function renderStaticFigure(p, color){
-  const seg = poseSegments(p), j = poseJoints(p);
-  const L = (key,c,w) => { const s = seg[key]; return `<line x1="${s[0][0]}" y1="${s[0][1]}" x2="${s[1][0]}" y2="${s[1][1]}" stroke="${c}" stroke-width="${w}" stroke-linecap="round"/>`; };
-  const C = (pt,r,fill) => `<circle cx="${pt[0]}" cy="${pt[1]}" r="${r}" fill="${fill}"/>`;
+  const BACK_OP = 0.82; // back limbs drawn slightly muted for a sense of depth
   let svg = `<line x1="4" y1="113" x2="96" y2="113" stroke="#000" stroke-width="1.5" opacity="0.08"/>`;
-  svg += L('legU1',FIG_SHORTS,9) + L('legL1',FIG_SKIN,7) + L('legU2',FIG_SHORTS,9) + L('legL2',FIG_SKIN,7);
-  svg += C(j.foot1,4.5,FIG_SHOE) + C(j.foot2,4.5,FIG_SHOE);
-  svg += L('torso',color,13);
-  svg += L('armU1',color,8) + L('armL1',FIG_SKIN,6.5) + L('armU2',color,8) + L('armL2',FIG_SKIN,6.5);
-  svg += C(j.hand1,3.8,FIG_SKIN) + C(j.hand2,3.8,FIG_SKIN);
+
+  // back leg (leg2)
+  svg += taperedLimb(p.h, p.leg2.k, 11, 8, FIG_SHORTS, BACK_OP);
+  svg += jointCap(p.leg2.k, 4, FIG_SKIN, BACK_OP);
+  svg += taperedLimb(p.leg2.k, p.leg2.f, 7.4, 5.8, FIG_SKIN, BACK_OP);
+  svg += jointCap(p.leg2.f, 4.2, FIG_SHOE, BACK_OP);
+
+  // torso (tapered: broader shoulders, narrower waist)
+  svg += taperedLimb(p.s, p.h, 16, 12.5, color);
+
+  // back arm (arm2)
+  svg += taperedLimb(p.s, p.arm2.el, 8.2, 6.8, color, BACK_OP);
+  svg += jointCap(p.arm2.el, 3.5, FIG_SKIN, BACK_OP);
+  svg += taperedLimb(p.arm2.el, p.arm2.ha, 6.3, 4.8, FIG_SKIN, BACK_OP);
+  svg += jointCap(p.arm2.ha, 3.6, FIG_SKIN, BACK_OP);
+
+  // front leg (leg1)
+  svg += taperedLimb(p.h, p.leg1.k, 11.5, 8.6, FIG_SHORTS);
+  svg += jointCap(p.leg1.k, 4.3, FIG_SKIN);
+  svg += taperedLimb(p.leg1.k, p.leg1.f, 8, 6.2, FIG_SKIN);
+  svg += jointCap(p.leg1.f, 4.5, FIG_SHOE);
+
+  // front arm (arm1)
+  svg += taperedLimb(p.s, p.arm1.el, 8.8, 7.2, color);
+  svg += jointCap(p.arm1.el, 3.8, FIG_SKIN);
+  svg += taperedLimb(p.arm1.el, p.arm1.ha, 6.6, 5, FIG_SKIN);
+  svg += jointCap(p.arm1.ha, 3.9, FIG_SKIN);
+
+  // neck, head, hair, face
   const h0 = p.head;
-  svg += `<circle cx="${h0[0]}" cy="${h0[1]}" r="9" fill="${FIG_SKIN}"/>
-    <path d="M ${h0[0]-8} ${h0[1]-4} Q ${h0[0]} ${h0[1]-15} ${h0[0]+8} ${h0[1]-4} Q ${h0[0]+6} ${h0[1]-8} ${h0[0]} ${h0[1]-8} Q ${h0[0]-6} ${h0[1]-8} ${h0[0]-8} ${h0[1]-4} Z" fill="${color}" opacity="0.85"/>
-    <circle cx="${h0[0]-3}" cy="${h0[1]-1}" r="1.2" fill="${FIG_INK}"/>
-    <circle cx="${h0[0]+3}" cy="${h0[1]-1}" r="1.2" fill="${FIG_INK}"/>
-    <path d="M ${h0[0]-3} ${h0[1]+3} Q ${h0[0]} ${h0[1]+6} ${h0[0]+3} ${h0[1]+3}" stroke="${FIG_INK}" stroke-width="1.1" fill="none" stroke-linecap="round"/>`;
+  svg += taperedLimb(p.s, h0, 7.5, 6.2, FIG_SKIN);
+  svg += `<circle cx="${h0[0]}" cy="${h0[1]}" r="9.5" fill="${FIG_SKIN}" stroke="rgba(20,24,34,0.16)" stroke-width="1"/>`;
+  svg += `<path d="M ${h0[0]-9.2} ${h0[1]-1.5}
+                   Q ${h0[0]-10} ${h0[1]-14} ${h0[0]} ${h0[1]-13.5}
+                   Q ${h0[0]+10} ${h0[1]-14} ${h0[0]+9.2} ${h0[1]-1.5}
+                   Q ${h0[0]+7} ${h0[1]-9} ${h0[0]} ${h0[1]-9}
+                   Q ${h0[0]-7} ${h0[1]-9} ${h0[0]-9.2} ${h0[1]-1.5} Z" fill="${FIG_HAIR}"/>`;
+  svg += `<circle cx="${h0[0]+8.5}" cy="${h0[1]-2}" r="2.8" fill="${FIG_HAIR}"/>`;
+  svg += `<circle cx="${h0[0]-3}" cy="${h0[1]-1}" r="1.3" fill="${FIG_INK}"/>`;
+  svg += `<circle cx="${h0[0]+3}" cy="${h0[1]-1}" r="1.3" fill="${FIG_INK}"/>`;
+  svg += `<path d="M ${h0[0]-3} ${h0[1]+3.4} Q ${h0[0]} ${h0[1]+6.4} ${h0[0]+3} ${h0[1]+3.4}" stroke="${FIG_INK}" stroke-width="1.1" fill="none" stroke-linecap="round"/>`;
+
   return `<svg viewBox="0 0 100 122" class="diagram" xmlns="http://www.w3.org/2000/svg">${svg}</svg>`;
 }
 

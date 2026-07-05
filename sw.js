@@ -1,18 +1,18 @@
-const CACHE = 'runready-v3';
+const CACHE = 'runready-v4';
 const ASSETS = ['./index.html','./data.js','./app.js','./manifest.json','./icon.svg',
-  './images/squat.png','./images/squat_thumb.png',
-  './images/lunge.png','./images/lunge_thumb.png',
-  './images/glutebridge.png','./images/glutebridge_thumb.png',
-  './images/wallsit.png','./images/wallsit_thumb.png',
-  './images/calfraise.png','./images/calfraise_thumb.png',
-  './images/st_quad.png','./images/st_quad_thumb.png',
-  './images/st_hamstring.png','./images/st_hamstring_thumb.png',
-  './images/st_calf.png','./images/st_calf_thumb.png',
-  './images/st_hipflexor.png','./images/st_hipflexor_thumb.png',
-  './images/st_glute.png','./images/st_glute_thumb.png',
-  './images/st_itband.png','./images/st_itband_thumb.png',
-  './images/st_butterfly.png','./images/st_butterfly_thumb.png',
-  './images/st_downdog.png','./images/st_downdog_thumb.png'
+  './squat.png','./squat_thumb.png',
+  './lunge.png','./lunge_thumb.png',
+  './glutebridge.png','./glutebridge_thumb.png',
+  './wallsit.png','./wallsit_thumb.png',
+  './calfraise.png','./calfraise_thumb.png',
+  './st_quad.png','./st_quad_thumb.png',
+  './st_hamstring.png','./st_hamstring_thumb.png',
+  './st_calf.png','./st_calf_thumb.png',
+  './st_hipflexor.png','./st_hipflexor_thumb.png',
+  './st_glute.png','./st_glute_thumb.png',
+  './st_itband.png','./st_itband_thumb.png',
+  './st_butterfly.png','./st_butterfly_thumb.png',
+  './st_downdog.png','./st_downdog_thumb.png'
 ];
 
 self.addEventListener('install', e=>{

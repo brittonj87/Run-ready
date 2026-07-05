@@ -270,13 +270,16 @@ function renderStretchGrid(){
       ? `<img src="${s.imageThumb}" alt="${s.name}" class="diagram" style="height:56px; width:100%; object-fit:cover; object-position:top; border-radius:8px;">`
       : stretchCardThumb(s, COLOR_STRETCH);
     return `<div class="ex-card">
-      <button class="ex-check ${done?'done':''}" onclick="event.stopPropagation(); toggleStretchDone('${s.id}')" aria-label="Mark stretch complete">${done?'✓':''}</button>
       <div class="ex-card-body" onclick="openStretch('${s.id}')">
         <span class="tag" style="background:var(--stretch-bg); color:var(--stretch);">${s.target}</span>
         ${thumb}
         <div class="exname">${s.name}</div>
         <div class="exsub">${s.hold}</div>
       </div>
+      <button class="ex-complete-bar ${done?'done':''}" onclick="event.stopPropagation(); toggleStretchDone('${s.id}')" aria-label="Toggle stretch complete">
+        <span class="ex-complete-box">${done?'✓':''}</span>
+        <span class="ex-complete-label">${done?'COMPLETE':'NOT COMPLETE'}</span>
+      </button>
     </div>`;
   }).join('');
 }
@@ -294,19 +297,22 @@ function openStretch(id){
   const entry = todayEntry();
   const done = entry.stretch.includes(id);
   const body = document.getElementById('modal-body');
+  body.classList.remove('minimized');
   const demoHTML = s.image
     ? `<div class="illustrated-demo"><img src="${s.image}" alt="${s.name} demonstration"></div>`
     : buildStepPanelsHTML(stretchStepPanels(s, COLOR_STRETCH));
   body.innerHTML = `
-    <div class="modal-handle"></div>
+    <button class="modal-handle-btn" onclick="toggleModalMinimize()" aria-label="Minimize"><div class="modal-handle"></div></button>
     <span class="modal-tag" style="background:var(--stretch-bg); color:var(--stretch);">${s.target}</span>
     <h2>${s.name}</h2>
     <div class="meta">Hold: ${s.hold}</div>
-    ${demoHTML}
-    <div class="tip">💡 ${s.tip}</div>
-    <button class="timer-btn" onclick="startHoldTimer(this)">⏱ Start hold timer</button>
-    <div class="timer-display" style="display:none;"></div>
-    <button class="complete-btn ${done?'done':''}" id="modal-complete-btn" onclick="toggleStretchDone('${id}')">${done?'✓ Marked complete':'Mark complete'}</button>
+    <div class="modal-scroll-content">
+      ${demoHTML}
+      <div class="tip">💡 ${s.tip}</div>
+      <button class="timer-btn" onclick="startHoldTimer(this)">⏱ Start hold timer</button>
+      <div class="timer-display" style="display:none;"></div>
+      <button class="complete-btn ${done?'done':''}" id="modal-complete-btn" onclick="toggleStretchDone('${id}')">${done?'✓ Marked complete':'Mark complete'}</button>
+    </div>
   `;
   document.getElementById('modal-backdrop').classList.add('open');
 }
@@ -337,13 +343,16 @@ function renderStrengthGrid(){
       ? `<img src="${s.imageThumb}" alt="${s.name}" class="diagram" style="height:56px; width:100%; object-fit:cover; object-position:top; border-radius:8px;">`
       : strengthCardThumb(s, COLOR_STRENGTH);
     return `<div class="ex-card">
-      <button class="ex-check ${done?'done':''}" onclick="event.stopPropagation(); toggleStrengthDone('${s.id}')" aria-label="Mark exercise complete">${done?'✓':''}</button>
       <div class="ex-card-body" onclick="openStrength('${s.id}')">
         <span class="tag" style="background:var(--strength-bg); color:var(--strength);">${s.target}</span>
         ${thumb}
         <div class="exname">${s.name}</div>
         <div class="exsub">${s.reps}</div>
       </div>
+      <button class="ex-complete-bar ${done?'done':''}" onclick="event.stopPropagation(); toggleStrengthDone('${s.id}')" aria-label="Toggle exercise complete">
+        <span class="ex-complete-box">${done?'✓':''}</span>
+        <span class="ex-complete-label">${done?'COMPLETE':'NOT COMPLETE'}</span>
+      </button>
     </div>`;
   }).join('');
 }
@@ -353,17 +362,20 @@ function openStrength(id){
   const entry = todayEntry();
   const done = entry.strength.includes(id);
   const body = document.getElementById('modal-body');
+  body.classList.remove('minimized');
   const demoHTML = s.image
     ? `<div class="illustrated-demo"><img src="${s.image}" alt="${s.name} demonstration"></div>`
     : buildStepPanelsHTML(strengthStepPanels(s, COLOR_STRENGTH));
   body.innerHTML = `
-    <div class="modal-handle"></div>
+    <button class="modal-handle-btn" onclick="toggleModalMinimize()" aria-label="Minimize"><div class="modal-handle"></div></button>
     <span class="modal-tag" style="background:var(--strength-bg); color:var(--strength);">${s.target}</span>
     <h2>${s.name}</h2>
     <div class="meta">${s.reps}</div>
-    ${demoHTML}
-    <div class="tip">💡 ${s.tip}</div>
-    <button class="complete-btn ${done?'done':''}" id="modal-complete-btn" onclick="toggleStrengthDone('${id}')">${done?'✓ Marked complete':'Mark complete'}</button>
+    <div class="modal-scroll-content">
+      ${demoHTML}
+      <div class="tip">💡 ${s.tip}</div>
+      <button class="complete-btn ${done?'done':''}" id="modal-complete-btn" onclick="toggleStrengthDone('${id}')">${done?'✓ Marked complete':'Mark complete'}</button>
+    </div>
   `;
   document.getElementById('modal-backdrop').classList.add('open');
 }
@@ -554,6 +566,10 @@ function saveSetup(){
 /* ---------- MODAL ---------- */
 function closeModal(){
   document.getElementById('modal-backdrop').classList.remove('open');
+  document.getElementById('modal-body').classList.remove('minimized');
+}
+function toggleModalMinimize(){
+  document.getElementById('modal-body').classList.toggle('minimized');
 }
 
 /* ---------- INIT ---------- */

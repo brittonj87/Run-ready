@@ -214,7 +214,6 @@ function renderHome(){
   document.getElementById('hp-stretch').textContent = `${entry.stretch.length}/${STRETCHES.length}`;
   const nutVals = Object.values(entry.nutrition);
   const nutPct = Math.round((nutVals.filter(Boolean).length/nutVals.length)*100);
-  document.getElementById('hp-nutrition').textContent = nutPct+'%';
 
   // Today's stretch card
   document.getElementById('home-stretch-meta').textContent = `${entry.stretch.length}/${STRETCHES.length} done · ~10 min`;
@@ -222,19 +221,45 @@ function renderHome(){
   document.getElementById('home-stretch-check').classList.toggle('done', stretchDone);
   document.getElementById('home-stretch-check').textContent = stretchDone ? '✓' : '→';
 
-  // Today's strength card
+  // Today's strength card — auto-complete when no strength is scheduled today
   const strengthTotal = sType ? STRENGTH.filter(x=>x.cat===sType).length : 0;
-  document.getElementById('home-strength-title').textContent = sType ? "Today's Strength Work" : 'Strength';
   document.getElementById('home-strength-icon').textContent = sType==='leg' ? '🦵' : sType==='core' ? '🔥' : '😌';
   document.getElementById('home-strength-name').textContent = sType ? (sType==='leg'?'Leg Day':'Core Day') : 'Rest — no strength today';
   document.getElementById('home-strength-meta').textContent = sType ? `${entry.strength.length}/${strengthTotal} done` : (hasProgram ? 'Recovery — stretching only' : 'Set up a program to schedule strength days');
-  const strengthDone = sType && entry.strength.length===strengthTotal;
+  const strengthDone = hasProgram && (!sType || entry.strength.length===strengthTotal);
   document.getElementById('home-strength-check').classList.toggle('done', !!strengthDone);
   document.getElementById('home-strength-check').textContent = strengthDone ? '✓' : '→';
 
   document.getElementById('home-nutrition-meta').textContent = `${nutVals.filter(Boolean).length} of ${nutVals.length} done`;
   document.getElementById('home-nutrition-check').classList.toggle('done', nutPct===100);
   document.getElementById('home-nutrition-check').textContent = nutPct===100 ? '✓' : '→';
+
+  renderHomeWeekCal();
+}
+
+function renderHomeWeekCal(){
+  const t = localDateStr();
+  let dates;
+  if(PROGRAM){
+    dates = currentWeekObj().dates;
+  } else {
+    const mon = weekStart(t);
+    dates = Array.from({length:7}, (_,i)=>addDays(mon,i));
+  }
+  const dayLetters = ['M','T','W','T','F','S','S'];
+  const container = document.getElementById('home-week-cal');
+  container.innerHTML = dates.map((d,i)=>{
+    const e = getEntryFor(d);
+    const stretchOk = !!(e && e.stretch.length===STRETCHES.length);
+    const sched = scheduledStrengthForDate(d);
+    const strengthOk = !sched || !!(e && e.strength.length===STRENGTH.filter(x=>x.cat===sched).length);
+    const complete = stretchOk && strengthOk;
+    const isToday = d===t;
+    return `<div class="week-cal-day">
+      <div class="week-cal-label">${dayLetters[i]}</div>
+      <div class="week-cal-circle ${complete?'done':''} ${isToday?'today':''}">${complete?'✓':parseLocalDate(d).getDate()}</div>
+    </div>`;
+  }).join('');
 }
 
 function getEntryFor(dateStr){
@@ -415,10 +440,121 @@ function renderNutrition(){
       <div><div class="ctext">${item.label}</div><div class="csub">${item.sub}</div></div>
     </div>`;
   }).join('');
+  renderWeightSection();
 }
 function toggleNutrition(key){
   updateToday(e=>{ e.nutrition[key] = !e.nutrition[key]; });
   renderNutrition();
+}
+
+/* ---------- WEIGHT TRACKER ---------- */
+const WEIGHT_KEY = 'runready_weight_v1';
+function loadWeightData(){
+  try { return JSON.parse(localStorage.getItem(WEIGHT_KEY)) || {targetWeight:null, log:{}}; }
+  catch(e){ return {targetWeight:null, log:{}}; }
+}
+function saveWeightData(data){ localStorage.setItem(WEIGHT_KEY, JSON.stringify(data)); }
+
+function getCurrentWeight(){
+  const data = loadWeightData();
+  const dates = Object.keys(data.log).sort();
+  if(dates.length===0) return null;
+  return data.log[dates[dates.length-1]];
+}
+function getTargetWeight(){ return loadWeightData().targetWeight; }
+
+function saveTodayWeight(value){
+  const v = parseFloat(value);
+  const data = loadWeightData();
+  if(!v || v<=0){ delete data.log[localDateStr()]; } else { data.log[localDateStr()] = v; }
+  saveWeightData(data);
+  renderNutrition();
+}
+function saveGoalWeight(value){
+  const v = parseFloat(value);
+  const data = loadWeightData();
+  data.targetWeight = (v && v>0) ? v : null;
+  saveWeightData(data);
+  renderNutrition();
+}
+
+function renderWeightSection(){
+  const data = loadWeightData();
+  const t = localDateStr();
+  const current = getCurrentWeight();
+  const target = getTargetWeight();
+
+  document.getElementById('weight-today').value = data.log[t] != null ? data.log[t] : '';
+  document.getElementById('weight-goal').value = target != null ? target : '';
+
+  // progress text
+  const progressEl = document.getElementById('weight-progress-text');
+  if(current != null && target != null){
+    const diff = current - target;
+    if(diff <= 0){
+      progressEl.textContent = `🎉 Goal reached! You're at ${current} lbs.`;
+    } else {
+      progressEl.textContent = `${diff.toFixed(1)} lbs to go to reach your goal of ${target} lbs.`;
+    }
+  } else if(current != null){
+    progressEl.textContent = `Current: ${current} lbs. Set a goal weight to track progress toward it.`;
+  } else {
+    progressEl.textContent = 'Log your weight to start tracking progress.';
+  }
+
+  // history (last 5 entries, most recent first)
+  const dates = Object.keys(data.log).sort().reverse();
+  const historyEl = document.getElementById('weight-history');
+  if(dates.length===0){
+    historyEl.innerHTML = '';
+  } else {
+    const rows = dates.slice(0,5).map((d,i)=>{
+      const w = data.log[d];
+      const prevDate = dates[i+1];
+      let deltaHTML = '';
+      if(prevDate != null){
+        const delta = w - data.log[prevDate];
+        if(Math.abs(delta) > 0.05){
+          const cls = delta < 0 ? 'down' : 'up';
+          const arrow = delta < 0 ? '▼' : '▲';
+          deltaHTML = `<span class="delta ${cls}">${arrow} ${Math.abs(delta).toFixed(1)}</span>`;
+        }
+      }
+      return `<div class="weight-history-row"><span>${fmtDay(d)}</span><span>${w} lbs ${deltaHTML}</span></div>`;
+    }).join('');
+    historyEl.innerHTML = rows;
+  }
+
+  // calorie-deficit / timeline estimate
+  const estimateEl = document.getElementById('weight-goal-estimate');
+  if(current != null && target != null && current > target){
+    const lbsToLose = current - target;
+    const weeks = Math.ceil(lbsToLose / 1); // ~1 lb/week at a ~500 cal/day deficit
+    estimateEl.innerHTML = `<div class="weight-goal-note">At a moderate ~500 cal/day deficit (~1 lb/week), reaching your goal (${lbsToLose.toFixed(1)} lbs to lose) would take roughly ${weeks} week${weeks===1?'':'s'}.</div>`;
+  } else {
+    estimateEl.innerHTML = '';
+  }
+
+  // personalized protein target
+  const proteinEl = document.getElementById('protein-target');
+  const proteinLabelEl = document.getElementById('protein-target-label');
+  if(current != null){
+    const lo = Math.round(current*0.7), hi = Math.round(current*1.0);
+    proteinEl.textContent = `${lo}–${hi}g`;
+    proteinLabelEl.textContent = 'protein / day for you';
+  } else {
+    proteinEl.textContent = '0.7–1g';
+    proteinLabelEl.textContent = 'protein / lb bodyweight';
+  }
+
+  // personalized hydration baseline
+  const hydrationEl = document.getElementById('hydration-baseline');
+  if(current != null){
+    const oz = Math.round(current*0.5);
+    hydrationEl.textContent = `Baseline for you: about ${oz} oz of water daily (half your bodyweight in lbs).`;
+  } else {
+    hydrationEl.textContent = 'Baseline: about half your bodyweight (lbs) in ounces of water daily.';
+  }
 }
 
 /* ---------- PLAN (weekly requirements) ---------- */

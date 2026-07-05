@@ -65,6 +65,12 @@
   .content{padding:18px 16px 8px;}
   .section-title{font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600; margin:22px 2px 10px;}
   .section-title:first-child{margin-top:0;}
+  .week-cal{display:flex; justify-content:space-between; gap:5px; margin-bottom:20px;}
+  .week-cal-day{flex:1; display:flex; flex-direction:column; align-items:center; gap:6px;}
+  .week-cal-label{font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.02em;}
+  .week-cal-circle{width:32px; height:32px; border-radius:50%; background:#F0F0EE; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:#B8B8B4; border:2px solid transparent; box-sizing:border-box;}
+  .week-cal-circle.done{background:var(--nutrition); color:#fff;}
+  .week-cal-circle.today{border-color:var(--navy);}
 
   /* CARDS */
   .card{background:var(--card); border-radius:18px; padding:16px; box-shadow:var(--shadow); margin-bottom:12px; border:1px solid var(--border);}
@@ -137,6 +143,27 @@
   .checklist-item .csub{font-size:11.5px; color:var(--muted); margin-top:1px;}
   .meal-idea{background:var(--nutrition-bg); border-radius:12px; padding:10px 12px; margin-bottom:8px; font-size:13px;}
   .meal-idea b{color:var(--nutrition); font-family:'Space Grotesk',sans-serif; font-size:12.5px; text-transform:uppercase; letter-spacing:.02em;}
+
+  .weight-row{display:flex; gap:10px; margin-bottom:12px;}
+  .weight-field{flex:1;}
+  .weight-field label{display:block; font-size:11.5px; font-weight:600; color:var(--muted); margin-bottom:6px;}
+  .weight-input-wrap{display:flex; align-items:center; gap:6px; background:#F7F7F5; border-radius:12px; padding:10px 12px;}
+  .weight-input-wrap input{border:none; background:none; font-size:16px; font-weight:700; font-family:'Space Grotesk',sans-serif; width:100%; color:var(--text); outline:none;}
+  .weight-input-wrap span{font-size:12px; color:var(--muted); flex-shrink:0;}
+  .weight-progress{font-size:13px; font-weight:600; color:var(--navy); background:#EEF3F9; border-radius:12px; padding:10px 12px; text-align:center;}
+  .weight-history{margin-top:10px;}
+  .weight-history-row{display:flex; justify-content:space-between; font-size:12.5px; padding:7px 0; border-bottom:1px solid var(--border); color:#39394A;}
+  .weight-history-row:last-child{border-bottom:none;}
+  .weight-history-row .delta{font-weight:700;}
+  .weight-history-row .delta.down{color:var(--nutrition);}
+  .weight-history-row .delta.up{color:#B3261E;}
+  .weight-goal-note{font-size:12.5px; color:var(--muted); margin-top:12px; text-align:center;}
+
+  .food-group{margin-bottom:16px;}
+  .food-group:last-child{margin-bottom:0;}
+  .food-group-label{font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:var(--muted); margin-bottom:8px;}
+  .food-chips{display:flex; flex-wrap:wrap; gap:6px;}
+  .food-chip{background:var(--nutrition-bg); color:var(--nutrition); font-size:12px; font-weight:600; padding:6px 11px; border-radius:20px;}
 
   /* HISTORY */
   .week-block{margin-bottom:18px;}
@@ -217,13 +244,14 @@
       <div class="hero-progress-row">
         <div class="hp-chip"><div class="n" id="hp-stretch">0/8</div><div class="l">Stretch today</div></div>
         <div class="hp-chip"><div class="n" id="hp-week-strength">0/2</div><div class="l">Strength this wk</div></div>
-        <div class="hp-chip"><div class="n" id="hp-nutrition">0%</div><div class="l">Nutrition</div></div>
       </div>
       <div style="text-align:right; margin-top:10px;"><button onclick="openSetup()" style="background:none; border:none; color:#fff; opacity:.75; font-size:12px; font-weight:600; padding:4px;">Edit race ›</button></div>
     </div>
   </div>
   <div class="content">
-    <div class="section-title">Today's Stretch Routine</div>
+    <div class="week-cal" id="home-week-cal"></div>
+
+    <div class="section-title">TODAY'S STRETCH ROUTINE</div>
     <div class="card plan-card" onclick="go('stretch')">
       <div class="plan-icon" style="background:var(--stretch-bg);">🧘</div>
       <div class="plan-body">
@@ -233,7 +261,7 @@
       <div class="plan-check" id="home-stretch-check">→</div>
     </div>
 
-    <div class="section-title" id="home-strength-title">Today's Strength Work</div>
+    <div class="section-title">TODAY'S STRENGTH ROUTINE</div>
     <div class="card plan-card" onclick="go('strength')">
       <div class="plan-icon" style="background:var(--strength-bg);" id="home-strength-icon">💪</div>
       <div class="plan-body">
@@ -243,7 +271,7 @@
       <div class="plan-check" id="home-strength-check">→</div>
     </div>
 
-    <div class="section-title">Nutrition Checklist</div>
+    <div class="section-title">TODAY'S NUTRITION CHECK LIST</div>
     <div class="card plan-card" onclick="go('nutrition')">
       <div class="plan-icon" style="background:var(--nutrition-bg);">🥗</div>
       <div class="plan-body">
@@ -293,11 +321,27 @@
       <div id="nutrition-checklist"></div>
     </div>
 
+    <div class="card">
+      <div class="section-title" style="margin-top:0;">Weight Tracker</div>
+      <div class="weight-row">
+        <div class="weight-field">
+          <label>Today's weight</label>
+          <div class="weight-input-wrap"><input type="number" id="weight-today" inputmode="decimal" placeholder="—" onchange="saveTodayWeight(this.value)"><span>lbs</span></div>
+        </div>
+        <div class="weight-field">
+          <label>Goal weight</label>
+          <div class="weight-input-wrap"><input type="number" id="weight-goal" inputmode="decimal" placeholder="—" onchange="saveGoalWeight(this.value)"><span>lbs</span></div>
+        </div>
+      </div>
+      <div class="weight-progress" id="weight-progress-text">Log your weight to start tracking progress.</div>
+      <div id="weight-history"></div>
+    </div>
+
     <div class="card nut-section">
       <h3>⚖️ Weight loss basics</h3>
       <p>Aim for a modest calorie deficit — big enough to lose fat, small enough that you can still train well.</p>
       <div class="macro-row">
-        <div class="macro-chip"><div class="v">0.7–1g</div><div class="k">protein / lb bodyweight</div></div>
+        <div class="macro-chip"><div class="v" id="protein-target">0.7–1g</div><div class="k" id="protein-target-label">protein / lb bodyweight</div></div>
         <div class="macro-chip"><div class="v">25–35g</div><div class="k">fiber / day</div></div>
         <div class="macro-chip"><div class="v">~500 cal</div><div class="k">deficit / day</div></div>
       </div>
@@ -307,6 +351,38 @@
         <li>Don't under-eat on hard training days — fuel the work, cut on easy/rest days instead.</li>
         <li>Sleep and stress matter as much as food for sustainable loss.</li>
       </ul>
+      <h3 style="margin-top:18px;">🔥 What is a calorie deficit?</h3>
+      <p>A calorie deficit means eating fewer calories than your body burns in a day. Since about 3,500 calories equal roughly 1 lb of fat, a deficit of ~500 calories/day leads to about 1 lb of fat loss per week — a sustainable, well-studied pace that shouldn't wreck your training.</p>
+      <p><b>How to get there:</b></p>
+      <ul>
+        <li>Trim portions slightly and swap processed foods for whole foods with more volume per calorie (vegetables, lean protein, fruit).</li>
+        <li>Increase daily activity — more walking, more training volume.</li>
+        <li>Track loosely for a week or two first to learn your baseline before cutting.</li>
+        <li>Avoid extreme deficits (under ~1,200–1,500 cal/day) — especially during heavy training weeks, since under-fueling hurts recovery and performance.</li>
+      </ul>
+      <div id="weight-goal-estimate"></div>
+    </div>
+
+    <div class="card nut-section">
+      <h3>🥗 Foods to build meals around</h3>
+      <div class="food-group">
+        <div class="food-group-label">Proteins</div>
+        <div class="food-chips">
+          <span class="food-chip">Chicken breast</span><span class="food-chip">Turkey</span><span class="food-chip">Lean beef</span><span class="food-chip">Pork tenderloin</span><span class="food-chip">Salmon</span><span class="food-chip">Tuna</span><span class="food-chip">Shrimp</span><span class="food-chip">Eggs</span><span class="food-chip">Egg whites</span><span class="food-chip">Greek yogurt</span><span class="food-chip">Cottage cheese</span><span class="food-chip">Tofu</span><span class="food-chip">Tempeh</span><span class="food-chip">Edamame</span><span class="food-chip">Lentils</span><span class="food-chip">Black beans</span><span class="food-chip">Chickpeas</span><span class="food-chip">Protein powder</span>
+        </div>
+      </div>
+      <div class="food-group">
+        <div class="food-group-label">Fiber-rich carbs</div>
+        <div class="food-chips">
+          <span class="food-chip">Oats</span><span class="food-chip">Quinoa</span><span class="food-chip">Brown rice</span><span class="food-chip">Sweet potato</span><span class="food-chip">Whole wheat bread</span><span class="food-chip">Whole wheat pasta</span><span class="food-chip">Lentils</span><span class="food-chip">Black beans</span><span class="food-chip">Chickpeas</span><span class="food-chip">Chia seeds</span><span class="food-chip">Flaxseed</span><span class="food-chip">Berries</span><span class="food-chip">Apples</span><span class="food-chip">Pears</span>
+        </div>
+      </div>
+      <div class="food-group">
+        <div class="food-group-label">Vegetables</div>
+        <div class="food-chips">
+          <span class="food-chip">Broccoli</span><span class="food-chip">Spinach</span><span class="food-chip">Kale</span><span class="food-chip">Bell peppers</span><span class="food-chip">Zucchini</span><span class="food-chip">Carrots</span><span class="food-chip">Cauliflower</span><span class="food-chip">Brussels sprouts</span><span class="food-chip">Asparagus</span><span class="food-chip">Green beans</span><span class="food-chip">Cucumber</span><span class="food-chip">Tomatoes</span><span class="food-chip">Mixed greens</span><span class="food-chip">Mushrooms</span>
+        </div>
+      </div>
     </div>
 
     <div class="card nut-section">
@@ -322,7 +398,7 @@
     <div class="card nut-section">
       <h3>💧 Hydration</h3>
       <ul>
-        <li>Baseline: about half your bodyweight (lbs) in ounces of water daily.</li>
+        <li id="hydration-baseline">Baseline: about half your bodyweight (lbs) in ounces of water daily.</li>
         <li>Add 16–24 oz for every hour of running, more in heat.</li>
         <li>On long runs past 60–90 min, add electrolytes — not just water.</li>
         <li>Check urine color: pale yellow is the target.</li>

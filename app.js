@@ -598,6 +598,8 @@ function setCalorieBudget(value){
   const v = parseFloat(value);
   const data = loadCalorieData();
   data.budget = (v && v>0) ? v : null;
+  // Auto-fill the daily deficit goal: 3,500 (1 lb of fat) minus the daily budget.
+  data.dailyDeficitGoal = data.budget != null ? (3500 - data.budget) : data.dailyDeficitGoal;
   saveCalorieData(data);
   renderNutrition();
 }
@@ -672,11 +674,10 @@ function renderCalorieSection(){
   const netToday = data.log[t] || 0;
   const todayText = document.getElementById('calorie-today-text');
   if(budget != null){
-    const diff = budget - netToday; // positive = under budget, negative = over
-    const overUnder = diff >= 0 ? `${Math.round(diff)} under budget` : `${Math.round(Math.abs(diff))} over budget`;
-    todayText.textContent = `Today: ${Math.round(netToday).toLocaleString()} cal · ${overUnder}`;
-    todayText.style.background = diff >= 0 ? '#EAF6ED' : '#FBEAEA';
-    todayText.style.color = diff >= 0 ? 'var(--nutrition)' : '#B3261E';
+    const remaining = budget - netToday; // positive = remaining budget left, negative = over
+    todayText.textContent = `Today: ${Math.round(netToday).toLocaleString()} / ${Math.round(remaining).toLocaleString()} cal remaining`;
+    todayText.style.background = remaining >= 0 ? '#EAF6ED' : '#FBEAEA';
+    todayText.style.color = remaining >= 0 ? 'var(--nutrition)' : '#B3261E';
   } else {
     todayText.textContent = netToday !== 0
       ? `Today: ${Math.round(netToday).toLocaleString()} cal logged. Set a budget above to compare.`
@@ -685,32 +686,12 @@ function renderCalorieSection(){
     todayText.style.color = 'var(--navy)';
   }
 
-  // trend vs personal daily deficit goal, working toward the 3,500/week target
-  const trendText = document.getElementById('calorie-trend-text');
-  if(budget != null && deficitGoal != null){
-    const todaysDeficit = budget - netToday;
-    const trendDiff = todaysDeficit - deficitGoal;
-    const trendMsg = trendDiff >= 0
-      ? `${Math.round(trendDiff)} cal ahead of your ${Math.round(deficitGoal)} cal/day goal`
-      : `${Math.round(Math.abs(trendDiff))} cal behind your ${Math.round(deficitGoal)} cal/day goal`;
-    trendText.textContent = `Trending toward 3,500/wk: ${trendMsg}`;
-    trendText.style.background = trendDiff >= 0 ? '#EAF6ED' : '#FBEAEA';
-    trendText.style.color = trendDiff >= 0 ? 'var(--nutrition)' : '#B3261E';
-    trendText.style.display = 'block';
-  } else {
-    trendText.style.display = 'none';
-  }
-
-  // weekly deficit vs the 3,500 goal (uses current program week if set, else calendar week)
-  let weekDates;
-  if(PROGRAM){ weekDates = currentWeekObj().dates; }
-  else { const mon = weekStart(t); weekDates = Array.from({length:7}, (_,i)=>addDays(mon,i)); }
-  const weekDeficitTotal = weeklyDeficitTotal(weekDates);
+  // Daily Deficit: today's total calories compared against the flat 3,500 reference
+  const dailyDiff = 3500 - netToday;
   const weekText = document.getElementById('calorie-week-text');
-  const metGoal = weekDeficitTotal >= WEEKLY_DEFICIT_GOAL;
-  weekText.textContent = `This week: ${Math.round(weekDeficitTotal).toLocaleString()} / ${WEEKLY_DEFICIT_GOAL.toLocaleString()} cal deficit${metGoal ? ' — goal met! 🎉' : ''}`;
-  weekText.style.background = metGoal ? '#EAF6ED' : '#FBEAEA';
-  weekText.style.color = metGoal ? 'var(--nutrition)' : '#B3261E';
+  weekText.textContent = `Daily Deficit: ${Math.abs(Math.round(dailyDiff)).toLocaleString()} cal ${dailyDiff >= 0 ? 'below' : 'above'} 3,500`;
+  weekText.style.background = dailyDiff >= 0 ? '#EAF6ED' : '#FBEAEA';
+  weekText.style.color = dailyDiff >= 0 ? 'var(--nutrition)' : '#B3261E';
 
   // full log, most recent first — one row per day (daily totals, not entries)
   const dates = Object.keys(data.log).sort().reverse();

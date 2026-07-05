@@ -207,6 +207,9 @@ function renderHome(){
       return e && e.strength.length>0;
     }).length;
     document.getElementById('hp-week-strength').textContent = `${weekStrengthDone}/${weekStrengthReq}`;
+
+    const weekDeficit = weeklyDeficitTotal(w.dates);
+    document.getElementById('hp-week-deficit').textContent = `${Math.round(weekDeficit).toLocaleString()}/3.5k`;
   } else {
     document.getElementById('home-daytype').textContent = sType ? (sType==='leg'?'Leg Day':'Core Day') + ' + Stretch' : "Today's Plan";
   }
@@ -441,6 +444,7 @@ function renderNutrition(){
     </div>`;
   }).join('');
   renderWeightSection();
+  renderCalorieSection();
 }
 function toggleNutrition(key){
   updateToday(e=>{ e.nutrition[key] = !e.nutrition[key]; });
@@ -502,13 +506,15 @@ function renderWeightSection(){
     progressEl.textContent = 'Log your weight to start tracking progress.';
   }
 
-  // history (last 5 entries, most recent first)
+  // full history, most recent first (shown inside collapsible body)
   const dates = Object.keys(data.log).sort().reverse();
   const historyEl = document.getElementById('weight-history');
+  const toggleLabel = document.getElementById('weight-log-toggle-label');
+  toggleLabel.textContent = `Weight log (${dates.length})`;
   if(dates.length===0){
-    historyEl.innerHTML = '';
+    historyEl.innerHTML = '<div class="empty-note">No entries yet.</div>';
   } else {
-    const rows = dates.slice(0,5).map((d,i)=>{
+    const rows = dates.map((d,i)=>{
       const w = data.log[d];
       const prevDate = dates[i+1];
       let deltaHTML = '';
@@ -555,6 +561,125 @@ function renderWeightSection(){
   } else {
     hydrationEl.textContent = 'Baseline: about half your bodyweight (lbs) in ounces of water daily.';
   }
+
+  applyCollapsibleState('weight-history', 'weight-log-chevron', weightLogOpen);
+}
+
+let weightLogOpen = false;
+function toggleWeightLog(){
+  weightLogOpen = !weightLogOpen;
+  applyCollapsibleState('weight-history', 'weight-log-chevron', weightLogOpen);
+}
+let calorieLogOpen = false;
+function toggleCalorieLog(){
+  calorieLogOpen = !calorieLogOpen;
+  applyCollapsibleState('calorie-history', 'calorie-log-chevron', calorieLogOpen);
+}
+function applyCollapsibleState(bodyId, chevronId, open){
+  const body = document.getElementById(bodyId);
+  const chevron = document.getElementById(chevronId);
+  if(!body || !chevron) return;
+  body.style.display = open ? 'block' : 'none';
+  chevron.classList.toggle('open', open);
+}
+
+/* ---------- CALORIE TRACKER ---------- */
+const CALORIE_KEY = 'runready_calorie_v1';
+const WEEKLY_DEFICIT_GOAL = 3500;
+function loadCalorieData(){
+  try { return JSON.parse(localStorage.getItem(CALORIE_KEY)) || {budget:null, log:{}}; }
+  catch(e){ return {budget:null, log:{}}; }
+}
+function saveCalorieData(data){ localStorage.setItem(CALORIE_KEY, JSON.stringify(data)); }
+function getCalorieBudget(){ return loadCalorieData().budget; }
+
+function setCalorieBudget(value){
+  const v = parseFloat(value);
+  const data = loadCalorieData();
+  data.budget = (v && v>0) ? v : null;
+  saveCalorieData(data);
+  renderNutrition();
+}
+function addCalories(amountStr){
+  const amt = parseFloat(amountStr);
+  if(!amt || amt<=0) return;
+  const data = loadCalorieData();
+  const t = localDateStr();
+  data.log[t] = (data.log[t]||0) + amt;
+  saveCalorieData(data);
+  renderNutrition();
+}
+// Deficit for a date = budget - calories consumed that date.
+// Days roll over naturally: once the date changes, new entries go under the
+// new date's key and the prior date's totals are left untouched — this is
+// effectively "locked in at midnight" without needing a background timer.
+function getDeficitForDate(dateStr){
+  const data = loadCalorieData();
+  if(data.budget == null || data.log[dateStr] == null) return null;
+  return data.budget - data.log[dateStr];
+}
+function weeklyDeficitTotal(dates){
+  let total = 0;
+  dates.forEach(d=>{
+    const def = getDeficitForDate(d);
+    if(def != null) total += def;
+  });
+  return total;
+}
+
+function renderCalorieSection(){
+  const data = loadCalorieData();
+  const t = localDateStr();
+  const budget = data.budget;
+
+  document.getElementById('calorie-budget').value = budget != null ? budget : '';
+  document.getElementById('calorie-add-input').value = '';
+
+  const consumedToday = data.log[t] || 0;
+  const todayText = document.getElementById('calorie-today-text');
+  if(budget != null){
+    const deficit = budget - consumedToday;
+    if(deficit >= 0){
+      todayText.textContent = `Today: ${consumedToday} / ${budget} cal · Deficit so far: ${deficit} cal`;
+    } else {
+      todayText.textContent = `Today: ${consumedToday} / ${budget} cal · Over budget by ${Math.abs(deficit)} cal`;
+    }
+  } else {
+    todayText.textContent = consumedToday > 0
+      ? `Today: ${consumedToday} cal logged. Set a budget above to see your deficit.`
+      : 'Set a budget and start logging calories to see today\'s deficit.';
+  }
+
+  // weekly deficit vs goal (uses current program week if set, else calendar week)
+  let weekDates;
+  if(PROGRAM){ weekDates = currentWeekObj().dates; }
+  else { const mon = weekStart(t); weekDates = Array.from({length:7}, (_,i)=>addDays(mon,i)); }
+  const weekTotal = weeklyDeficitTotal(weekDates);
+  const weekText = document.getElementById('calorie-week-text');
+  const metGoal = weekTotal >= WEEKLY_DEFICIT_GOAL;
+  weekText.textContent = `This week: ${Math.round(weekTotal).toLocaleString()} / ${WEEKLY_DEFICIT_GOAL.toLocaleString()} cal deficit${metGoal ? ' — goal met! 🎉' : ''}`;
+  weekText.style.background = metGoal ? '#EAF6ED' : '#FBEAEA';
+  weekText.style.color = metGoal ? 'var(--nutrition)' : '#B3261E';
+
+  // full log, most recent first
+  const dates = Object.keys(data.log).sort().reverse();
+  const historyEl = document.getElementById('calorie-history');
+  const toggleLabel = document.getElementById('calorie-log-toggle-label');
+  toggleLabel.textContent = `Calorie log (${dates.length})`;
+  if(dates.length===0){
+    historyEl.innerHTML = '<div class="empty-note">No entries yet.</div>';
+  } else {
+    historyEl.innerHTML = dates.map(d=>{
+      const consumed = data.log[d];
+      const def = getDeficitForDate(d);
+      const defHTML = def != null
+        ? `<span class="delta ${def>=0?'down':'up'}">${def>=0?'▼':'▲'} ${Math.abs(Math.round(def))}</span>`
+        : '';
+      return `<div class="weight-history-row"><span>${fmtDay(d)}</span><span>${consumed} cal ${defHTML}</span></div>`;
+    }).join('');
+  }
+
+  applyCollapsibleState('calorie-history', 'calorie-log-chevron', calorieLogOpen);
 }
 
 /* ---------- PLAN (weekly requirements) ---------- */
@@ -590,6 +715,9 @@ function renderPlan(){
     const strengthLabel = w.strengthDays.length>0
       ? `${w.strengthDays.length} strength day${w.strengthDays.length>1?'s':''}: ${w.strengthDays.map(sd=>fmtDay(sd.date).split(',')[0]+' ('+(sd.type==='leg'?'Leg':'Core')+')').join(' · ')}`
       : 'No strength days — recovery focus';
+    const weekDeficit = weeklyDeficitTotal(w.dates);
+    const deficitMet = weekDeficit >= WEEKLY_DEFICIT_GOAL;
+    const deficitColor = deficitMet ? 'var(--nutrition)' : '#C2571B';
     return `<div class="week-card ${isCurrent?'current':''}">
       <div class="week-card-top">
         <div class="week-num">Week ${w.index} of ${PROGRAM.totalWeeks}</div>
@@ -599,6 +727,7 @@ function renderPlan(){
       <div class="week-note">${w.info.note}</div>
       <div class="week-req-row"><span class="wdot" style="background:var(--strength);"></span>${strengthLabel}</div>
       <div class="week-req-row"><span class="wdot" style="background:var(--stretch);"></span>Daily stretch routine (all 7 days)</div>
+      <div class="week-req-row"><span class="wdot" style="background:${deficitColor};"></span><span style="color:${deficitColor}; font-weight:700;">${Math.round(weekDeficit).toLocaleString()} / ${WEEKLY_DEFICIT_GOAL.toLocaleString()} cal deficit${deficitMet?' ✓':''}</span></div>
       <div class="week-days-mini">${dayPills}</div>
     </div>`;
   }).join('');
@@ -690,6 +819,47 @@ function saveSetup(){
 /* ---------- MODAL ---------- */
 function closeModal(){
   document.getElementById('modal-backdrop').classList.remove('open');
+}
+
+/* ---------- BACKUP / RESTORE ---------- */
+const BACKUP_KEYS = [PROGRAM_KEY, STORE_KEY, WEIGHT_KEY, CALORIE_KEY];
+
+function exportData(){
+  const payload = { exportedAt: new Date().toISOString(), app: 'RunReady', data: {} };
+  BACKUP_KEYS.forEach(k=>{
+    const raw = localStorage.getItem(k);
+    if(raw != null) payload.data[k] = raw;
+  });
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `runready-backup-${localDateStr()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function handleImportFile(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    let parsed;
+    try { parsed = JSON.parse(e.target.result); }
+    catch(err){ alert('That file doesn\'t look like a valid RunReady backup.'); return; }
+    if(!parsed || !parsed.data){ alert('That file doesn\'t look like a valid RunReady backup.'); return; }
+    const confirmed = confirm('Importing will overwrite all current RunReady data on this device. Continue?');
+    if(!confirmed) return;
+    BACKUP_KEYS.forEach(k=>{
+      if(parsed.data[k] != null) localStorage.setItem(k, parsed.data[k]);
+      else localStorage.removeItem(k);
+    });
+    alert('Import complete! Reloading the app.');
+    location.reload();
+  };
+  reader.onerror = function(){ alert('Could not read that file.'); };
+  reader.readAsText(file);
 }
 
 /* ---------- INIT ---------- */

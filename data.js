@@ -110,6 +110,7 @@ function strengthCardThumb(s, color){ return cardThumb(s, color, !!s.isHold); }
 
 const STRETCHES = [
 { id:'st_quad', name:'Standing Quad Stretch', target:'Quads', hold:'60s each side',
+  image:'images/st_quad.png', imageThumb:'images/st_quad_thumb.png',
   poses:[
     {head:[47,16],s:[47,28],h:[47,58], arm1:{el:[39,38],ha:[33,47]}, arm2:{el:[55,38],ha:[61,47]}, leg1:{k:[45,85],f:[43,112]}, leg2:{k:[49,85],f:[47,112]}},
     {head:[50,14],s:[50,27],h:[47,58], arm1:{el:[58,42],ha:[64,66]}, arm2:{el:[36,32],ha:[26,26]}, leg1:{k:[45,86],f:[43,112]}, leg2:{k:[55,74],f:[62,66]}}
@@ -123,6 +124,7 @@ const STRETCHES = [
   ], tip:'Keep your standing knee soft, not locked, to protect the joint.'},
 
 { id:'st_hamstring', name:'Seated Hamstring Stretch', target:'Hamstrings', hold:'60s each side',
+  image:'images/st_hamstring.png', imageThumb:'images/st_hamstring_thumb.png',
   poses:[
     {head:[38,32],s:[35,44],h:[35,72], arm1:{el:[40,56],ha:[44,70]}, arm2:{el:[32,56],ha:[28,70]}, leg1:{k:[60,73],f:[88,75]}, leg2:{k:[60,76],f:[88,79]}},
     {head:[58,46],s:[52,40],h:[35,72], arm1:{el:[60,56],ha:[72,68]}, arm2:{el:[56,58],ha:[68,71]}, leg1:{k:[60,73],f:[88,75]}, leg2:{k:[60,76],f:[88,79]}}
@@ -136,6 +138,7 @@ const STRETCHES = [
   ], tip:'It\u2019s fine if you can\u2019t reach your toes — bend knees slightly if hamstrings are very tight.'},
 
 { id:'st_calf', name:'Wall Calf Stretch', target:'Calves', hold:'60s each side',
+  image:'images/st_calf.png', imageThumb:'images/st_calf_thumb.png',
   poses:[
     {head:[64,16],s:[62,28],h:[60,58], arm1:{el:[54,38],ha:[48,47]}, arm2:{el:[70,38],ha:[76,47]}, leg1:{k:[60,85],f:[58,112]}, leg2:{k:[63,85],f:[65,112]}},
     {head:[70,16],s:[68,28],h:[62,58], arm1:{el:[76,35],ha:[88,32]}, arm2:{el:[74,38],ha:[86,38]}, leg1:{k:[58,80],f:[52,112]}, leg2:{k:[70,90],f:[85,110]}}
@@ -149,6 +152,7 @@ const STRETCHES = [
   ], tip:'For a deeper stretch lower down the calf, bend the back knee slightly while keeping the heel down.'},
 
 { id:'st_hipflexor', name:'Kneeling Hip Flexor Stretch', target:'Hip flexors', hold:'60s each side',
+  image:'images/st_hipflexor.png', imageThumb:'images/st_hipflexor_thumb.png',
   poses:[
     {head:[45,16],s:[45,28],h:[45,58], arm1:{el:[38,38],ha:[33,47]}, arm2:{el:[52,38],ha:[57,47]}, leg1:{k:[43,85],f:[41,112]}, leg2:{k:[47,85],f:[49,112]}},
     {head:[45,25],s:[45,36],h:[45,64], arm1:{el:[52,48],ha:[55,60]}, arm2:{el:[38,48],ha:[35,60]}, leg1:{k:[35,86],f:[30,110]}, leg2:{k:[60,105],f:[75,108]}}
@@ -162,6 +166,7 @@ const STRETCHES = [
   ], tip:'Tight hip flexors are common in runners and can pull on the lower back — this one\'s worth doing daily.'},
 
 { id:'st_glute', name:'Standing Figure-4 Glute Stretch', target:'Glutes / piriformis', hold:'60s each side',
+  image:'images/st_glute.png', imageThumb:'images/st_glute_thumb.png',
   poses:[
     {head:[48,16],s:[48,28],h:[46,58], arm1:{el:[40,38],ha:[35,47]}, arm2:{el:[56,38],ha:[61,47]}, leg1:{k:[44,85],f:[42,112]}, leg2:{k:[48,85],f:[50,112]}},
     {head:[48,18],s:[48,30],h:[46,62], arm1:{el:[55,46],ha:[58,56]}, arm2:{el:[40,44],ha:[36,52]}, leg1:{k:[42,88],f:[40,112]}, leg2:{k:[58,74],f:[64,72]}}
@@ -175,6 +180,7 @@ const STRETCHES = [
   ], tip:'This one targets the glutes and piriformis, which can tighten up and cause hip or lower-back tightness in runners.'},
 
 { id:'st_itband', name:'Standing IT Band Stretch', target:'IT band / outer hip', hold:'60s each side',
+  image:'images/st_itband.png', imageThumb:'images/st_itband_thumb.png',
   poses:[
     {head:[50,16],s:[50,28],h:[48,58], arm1:{el:[42,38],ha:[36,47]}, arm2:{el:[58,38],ha:[64,47]}, leg1:{k:[48,85],f:[46,112]}, leg2:{k:[52,85],f:[54,112]}},
     {head:[62,20],s:[58,30],h:[50,60], arm1:{el:[68,20],ha:[78,10]}, arm2:{el:[42,42],ha:[38,52]}, leg1:{k:[52,86],f:[60,112]}, leg2:{k:[46,88],f:[38,110]}}
@@ -188,6 +194,7 @@ const STRETCHES = [
   ], tip:'A tight IT band is a common cause of outer-knee pain in runners — this stretch plus foam rolling can help.'},
 
 { id:'st_butterfly', name:'Butterfly Stretch', target:'Inner thighs / groin', hold:'60s',
+  image:'images/st_butterfly.png', imageThumb:'images/st_butterfly_thumb.png',
   poses:[
     {head:[50,32],s:[48,28],h:[48,72], arm1:{el:[42,45],ha:[38,58]}, arm2:{el:[54,45],ha:[58,58]}, leg1:{k:[33,66],f:[40,90]}, leg2:{k:[63,66],f:[56,90]}},
     {head:[50,50],s:[48,42],h:[48,76], arm1:{el:[42,58],ha:[38,72]}, arm2:{el:[54,58],ha:[58,72]}, leg1:{k:[30,88],f:[46,90]}, leg2:{k:[66,88],f:[50,90]}}
@@ -201,6 +208,7 @@ const STRETCHES = [
   ], tip:'Never bounce in a stretch — ease in gradually and let the muscle relax.'},
 
 { id:'st_downdog', name:'Downward Dog', target:'Calves / hamstrings / back', hold:'60s',
+  image:'images/st_downdog.png', imageThumb:'images/st_downdog_thumb.png',
   poses:[
     {head:[62,58],s:[57,55],h:[38,56], arm1:{el:[63,66],ha:[68,86]}, arm2:{el:[60,68],ha:[65,87]}, leg1:{k:[24,58],f:[13,84]}, leg2:{k:[26,60],f:[15,86]}},
     {head:[55,55],s:[50,50],h:[35,40], arm1:{el:[65,65],ha:[78,90]}, arm2:{el:[63,68],ha:[76,92]}, leg1:{k:[25,70],f:[18,110]}, leg2:{k:[28,72],f:[22,110]}}
@@ -218,6 +226,7 @@ const STRETCHES = [
 const STRENGTH = [
 // LEGS
 { id:'sx_squat', cat:'leg', name:'Bodyweight Squat', target:'Quads / glutes', reps:'3 sets x 15 reps',
+  image:'images/squat.png', imageThumb:'images/squat_thumb.png',
   poses:[
     {head:[50,16],s:[50,28],h:[48,55], arm1:{el:[40,35],ha:[32,40]}, arm2:{el:[58,35],ha:[66,40]}, leg1:{k:[45,85],f:[43,112]}, leg2:{k:[52,85],f:[54,112]}},
     {head:[50,42],s:[50,54],h:[48,74], arm1:{el:[35,50],ha:[26,42]}, arm2:{el:[62,50],ha:[70,42]}, leg1:{k:[34,80],f:[40,112]}, leg2:{k:[60,80],f:[56,112]}}
@@ -231,6 +240,7 @@ const STRENGTH = [
   ], tip:'Track your knees over your toes — don\u2019t let them cave inward.'},
 
 { id:'sx_lunge', cat:'leg', name:'Reverse Lunge', target:'Glutes / quads / balance', reps:'3 sets x 10 each leg',
+  image:'images/lunge.png', imageThumb:'images/lunge_thumb.png',
   poses:[
     {head:[50,16],s:[50,28],h:[48,55], arm1:{el:[40,35],ha:[34,42]}, arm2:{el:[58,35],ha:[64,42]}, leg1:{k:[46,85],f:[45,112]}, leg2:{k:[50,85],f:[51,112]}},
     {head:[50,20],s:[50,32],h:[48,60], arm1:{el:[40,40],ha:[34,48]}, arm2:{el:[58,40],ha:[64,48]}, leg1:{k:[38,84],f:[34,112]}, leg2:{k:[62,95],f:[75,105]}}
@@ -244,6 +254,7 @@ const STRENGTH = [
   ], tip:'A reverse lunge is gentler on the knees than a forward lunge — good for runners.'},
 
 { id:'sx_glutebridge', cat:'leg', name:'Single-Leg Glute Bridge', target:'Glutes / hamstrings', reps:'3 sets x 12 each leg',
+  image:'images/glutebridge.png', imageThumb:'images/glutebridge_thumb.png',
   poses:[
     {head:[20,90],s:[32,88],h:[50,90], arm1:{el:[30,95],ha:[20,100]}, arm2:{el:[30,80],ha:[20,75]}, leg1:{k:[62,78],f:[75,90]}, leg2:{k:[68,60],f:[70,35]}},
     {head:[20,88],s:[32,84],h:[50,74], arm1:{el:[30,92],ha:[20,96]}, arm2:{el:[30,78],ha:[20,73]}, leg1:{k:[62,76],f:[75,90]}, leg2:{k:[68,55],f:[70,28]}}
@@ -257,6 +268,7 @@ const STRENGTH = [
   ], tip:'Weak glutes are a common cause of runner\'s knee — this one directly strengthens them.'},
 
 { id:'sx_wallsit', cat:'leg', name:'Wall Sit', target:'Quads (isometric)', reps:'3 sets x 30-45s hold', isHold:true,
+  image:'images/wallsit.png', imageThumb:'images/wallsit_thumb.png',
   poses:[
     {head:[75,16],s:[74,28],h:[70,58], arm1:{el:[65,38],ha:[58,47]}, arm2:{el:[83,38],ha:[90,47]}, leg1:{k:[71,85],f:[70,112]}, leg2:{k:[74,85],f:[75,112]}},
     {head:[75,20],s:[74,32],h:[70,60], arm1:{el:[62,45],ha:[55,52]}, arm2:{el:[80,45],ha:[88,52]}, leg1:{k:[50,60],f:[48,90]}, leg2:{k:[52,58],f:[50,92]}}
@@ -270,6 +282,7 @@ const STRENGTH = [
   ], tip:'A pure isometric burner — great for building quad endurance for downhill running.'},
 
 { id:'sx_calfraise', cat:'leg', name:'Calf Raise', target:'Calves', reps:'3 sets x 20 reps',
+  image:'images/calfraise.png', imageThumb:'images/calfraise_thumb.png',
   poses:[
     {head:[50,16],s:[50,28],h:[48,58], arm1:{el:[40,38],ha:[34,46]}, arm2:{el:[58,38],ha:[64,46]}, leg1:{k:[46,86],f:[44,112]}, leg2:{k:[52,86],f:[54,112]}},
     {head:[50,10],s:[50,22],h:[48,52], arm1:{el:[40,34],ha:[34,42]}, arm2:{el:[58,34],ha:[64,42]}, leg1:{k:[46,80],f:[44,105]}, leg2:{k:[52,80],f:[54,105]}}

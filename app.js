@@ -587,11 +587,12 @@ function applyCollapsibleState(bodyId, chevronId, open){
 const CALORIE_KEY = 'runready_calorie_v1';
 const WEEKLY_DEFICIT_GOAL = 3500;
 function loadCalorieData(){
-  try { return JSON.parse(localStorage.getItem(CALORIE_KEY)) || {budget:null, log:{}}; }
-  catch(e){ return {budget:null, log:{}}; }
+  try { return JSON.parse(localStorage.getItem(CALORIE_KEY)) || {budget:null, dailyDeficitGoal:null, log:{}}; }
+  catch(e){ return {budget:null, dailyDeficitGoal:null, log:{}}; }
 }
 function saveCalorieData(data){ localStorage.setItem(CALORIE_KEY, JSON.stringify(data)); }
 function getCalorieBudget(){ return loadCalorieData().budget; }
+function getDailyDeficitGoal(){ return loadCalorieData().dailyDeficitGoal; }
 
 function setCalorieBudget(value){
   const v = parseFloat(value);
@@ -600,6 +601,15 @@ function setCalorieBudget(value){
   saveCalorieData(data);
   renderNutrition();
 }
+function setDailyDeficitGoal(value){
+  const v = parseFloat(value);
+  const data = loadCalorieData();
+  data.dailyDeficitGoal = (v && v>0) ? v : null;
+  saveCalorieData(data);
+  renderNutrition();
+}
+// Both eating/drinking and training entries adjust the SAME running daily
+// total (net calories) — the log stores one number per day, not each entry.
 function addCalories(amountStr){
   const amt = parseFloat(amountStr);
   if(!amt || amt<=0) return;
@@ -609,7 +619,16 @@ function addCalories(amountStr){
   saveCalorieData(data);
   renderNutrition();
 }
-// Deficit for a date = budget - calories consumed that date.
+function subtractCalories(amountStr){
+  const amt = parseFloat(amountStr);
+  if(!amt || amt<=0) return;
+  const data = loadCalorieData();
+  const t = localDateStr();
+  data.log[t] = (data.log[t]||0) - amt;
+  saveCalorieData(data);
+  renderNutrition();
+}
+// Deficit for a date = budget - net calories logged that date.
 // Days roll over naturally: once the date changes, new entries go under the
 // new date's key and the prior date's totals are left untouched — this is
 // effectively "locked in at midnight" without needing a background timer.
@@ -626,42 +645,74 @@ function weeklyDeficitTotal(dates){
   });
   return total;
 }
+function weeklyCaloriesTotal(dates){
+  const data = loadCalorieData();
+  let total = 0;
+  dates.forEach(d=>{ if(data.log[d] != null) total += data.log[d]; });
+  return total;
+}
 
 function renderCalorieSection(){
   const data = loadCalorieData();
   const t = localDateStr();
   const budget = data.budget;
+  const deficitGoal = data.dailyDeficitGoal;
 
   document.getElementById('calorie-budget').value = budget != null ? budget : '';
+  document.getElementById('calorie-deficit-goal').value = deficitGoal != null ? deficitGoal : '';
   document.getElementById('calorie-add-input').value = '';
+  document.getElementById('calorie-subtract-input').value = '';
 
-  const consumedToday = data.log[t] || 0;
+  // daily budget -> weekly budget (x7)
+  const summaryEl = document.getElementById('calorie-budget-summary');
+  summaryEl.textContent = budget != null
+    ? `Daily budget: ${budget.toLocaleString()} cal · Weekly budget: ${(budget*7).toLocaleString()} cal`
+    : 'Set your daily budget to see your weekly budget.';
+
+  const netToday = data.log[t] || 0;
   const todayText = document.getElementById('calorie-today-text');
   if(budget != null){
-    const deficit = budget - consumedToday;
-    if(deficit >= 0){
-      todayText.textContent = `Today: ${consumedToday} / ${budget} cal · Deficit so far: ${deficit} cal`;
-    } else {
-      todayText.textContent = `Today: ${consumedToday} / ${budget} cal · Over budget by ${Math.abs(deficit)} cal`;
-    }
+    const diff = budget - netToday; // positive = under budget, negative = over
+    const overUnder = diff >= 0 ? `${Math.round(diff)} under budget` : `${Math.round(Math.abs(diff))} over budget`;
+    todayText.textContent = `Today: ${Math.round(netToday).toLocaleString()} cal · ${overUnder}`;
+    todayText.style.background = diff >= 0 ? '#EAF6ED' : '#FBEAEA';
+    todayText.style.color = diff >= 0 ? 'var(--nutrition)' : '#B3261E';
   } else {
-    todayText.textContent = consumedToday > 0
-      ? `Today: ${consumedToday} cal logged. Set a budget above to see your deficit.`
-      : 'Set a budget and start logging calories to see today\'s deficit.';
+    todayText.textContent = netToday !== 0
+      ? `Today: ${Math.round(netToday).toLocaleString()} cal logged. Set a budget above to compare.`
+      : 'Set a budget and start logging to see today\'s totals.';
+    todayText.style.background = '#EEF3F9';
+    todayText.style.color = 'var(--navy)';
   }
 
-  // weekly deficit vs goal (uses current program week if set, else calendar week)
+  // trend vs personal daily deficit goal, working toward the 3,500/week target
+  const trendText = document.getElementById('calorie-trend-text');
+  if(budget != null && deficitGoal != null){
+    const todaysDeficit = budget - netToday;
+    const trendDiff = todaysDeficit - deficitGoal;
+    const trendMsg = trendDiff >= 0
+      ? `${Math.round(trendDiff)} cal ahead of your ${Math.round(deficitGoal)} cal/day goal`
+      : `${Math.round(Math.abs(trendDiff))} cal behind your ${Math.round(deficitGoal)} cal/day goal`;
+    trendText.textContent = `Trending toward 3,500/wk: ${trendMsg}`;
+    trendText.style.background = trendDiff >= 0 ? '#EAF6ED' : '#FBEAEA';
+    trendText.style.color = trendDiff >= 0 ? 'var(--nutrition)' : '#B3261E';
+    trendText.style.display = 'block';
+  } else {
+    trendText.style.display = 'none';
+  }
+
+  // weekly deficit vs the 3,500 goal (uses current program week if set, else calendar week)
   let weekDates;
   if(PROGRAM){ weekDates = currentWeekObj().dates; }
   else { const mon = weekStart(t); weekDates = Array.from({length:7}, (_,i)=>addDays(mon,i)); }
-  const weekTotal = weeklyDeficitTotal(weekDates);
+  const weekDeficitTotal = weeklyDeficitTotal(weekDates);
   const weekText = document.getElementById('calorie-week-text');
-  const metGoal = weekTotal >= WEEKLY_DEFICIT_GOAL;
-  weekText.textContent = `This week: ${Math.round(weekTotal).toLocaleString()} / ${WEEKLY_DEFICIT_GOAL.toLocaleString()} cal deficit${metGoal ? ' — goal met! 🎉' : ''}`;
+  const metGoal = weekDeficitTotal >= WEEKLY_DEFICIT_GOAL;
+  weekText.textContent = `This week: ${Math.round(weekDeficitTotal).toLocaleString()} / ${WEEKLY_DEFICIT_GOAL.toLocaleString()} cal deficit${metGoal ? ' — goal met! 🎉' : ''}`;
   weekText.style.background = metGoal ? '#EAF6ED' : '#FBEAEA';
   weekText.style.color = metGoal ? 'var(--nutrition)' : '#B3261E';
 
-  // full log, most recent first
+  // full log, most recent first — one row per day (daily totals, not entries)
   const dates = Object.keys(data.log).sort().reverse();
   const historyEl = document.getElementById('calorie-history');
   const toggleLabel = document.getElementById('calorie-log-toggle-label');
@@ -670,12 +721,17 @@ function renderCalorieSection(){
     historyEl.innerHTML = '<div class="empty-note">No entries yet.</div>';
   } else {
     historyEl.innerHTML = dates.map(d=>{
-      const consumed = data.log[d];
+      const net = data.log[d];
       const def = getDeficitForDate(d);
-      const defHTML = def != null
-        ? `<span class="delta ${def>=0?'down':'up'}">${def>=0?'▼':'▲'} ${Math.abs(Math.round(def))}</span>`
-        : '';
-      return `<div class="weight-history-row"><span>${fmtDay(d)}</span><span>${consumed} cal ${defHTML}</span></div>`;
+      let indicatorHTML = '';
+      if(def != null){
+        const goalForDay = deficitGoal != null ? deficitGoal : 0;
+        const diff = def - goalForDay;
+        const cls = diff >= 0 ? 'down' : 'up';
+        const arrow = diff >= 0 ? '▼' : '▲';
+        indicatorHTML = `<span class="delta ${cls}">${arrow} ${Math.abs(Math.round(diff))}</span>`;
+      }
+      return `<div class="weight-history-row"><span>${fmtDay(d)}</span><span>${Math.round(net).toLocaleString()} cal ${indicatorHTML}</span></div>`;
     }).join('');
   }
 
@@ -715,9 +771,12 @@ function renderPlan(){
     const strengthLabel = w.strengthDays.length>0
       ? `${w.strengthDays.length} strength day${w.strengthDays.length>1?'s':''}: ${w.strengthDays.map(sd=>fmtDay(sd.date).split(',')[0]+' ('+(sd.type==='leg'?'Leg':'Core')+')').join(' · ')}`
       : 'No strength days — recovery focus';
-    const weekDeficit = weeklyDeficitTotal(w.dates);
-    const deficitMet = weekDeficit >= WEEKLY_DEFICIT_GOAL;
-    const deficitColor = deficitMet ? 'var(--nutrition)' : '#C2571B';
+    const weekCalTotal = weeklyCaloriesTotal(w.dates);
+    const dailyBudget = getCalorieBudget();
+    const weeklyBudget = dailyBudget != null ? dailyBudget*7 : null;
+    const calLineHTML = weeklyBudget != null
+      ? `<div class="week-req-row"><span class="wdot" style="background:var(--nutrition);"></span>${Math.round(weekCalTotal).toLocaleString()} / ${Math.round(weeklyBudget).toLocaleString()} cal this week</div>`
+      : `<div class="week-req-row"><span class="wdot" style="background:var(--nutrition);"></span>${Math.round(weekCalTotal).toLocaleString()} cal logged this week — set a daily budget in Fuel to compare</div>`;
     return `<div class="week-card ${isCurrent?'current':''}">
       <div class="week-card-top">
         <div class="week-num">Week ${w.index} of ${PROGRAM.totalWeeks}</div>
@@ -727,7 +786,7 @@ function renderPlan(){
       <div class="week-note">${w.info.note}</div>
       <div class="week-req-row"><span class="wdot" style="background:var(--strength);"></span>${strengthLabel}</div>
       <div class="week-req-row"><span class="wdot" style="background:var(--stretch);"></span>Daily stretch routine (all 7 days)</div>
-      <div class="week-req-row"><span class="wdot" style="background:${deficitColor};"></span><span style="color:${deficitColor}; font-weight:700;">${Math.round(weekDeficit).toLocaleString()} / ${WEEKLY_DEFICIT_GOAL.toLocaleString()} cal deficit${deficitMet?' ✓':''}</span></div>
+      ${calLineHTML}
       <div class="week-days-mini">${dayPills}</div>
     </div>`;
   }).join('');
